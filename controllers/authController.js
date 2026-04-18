@@ -8,7 +8,12 @@ const User = require('../models/User');
 const Category = require('../models/Category');
 
 const generateToken = (user) => {
-  return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+  return jwt.sign({
+    id: user._id,
+    role: user.role,
+    name: user.name,
+    phone: user.phone,
+  }, process.env.JWT_SECRET, { expiresIn: '1d' });
 };
 
 const login = async (Model, req, res) => {

@@ -66,14 +66,23 @@ exports.viewVendorDetails = async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ message: 'Vendor not found' });
     }
+
+    const currentUser = await User.findById(req.user.id);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const customerName = currentUser.name;
+    const customerPhone = currentUser.phone;
+
     // Track customer viewed vendor and save to user's direct leads
-    await trackVendorLead(vendorId, req.user.name, req.user.phone, 'customerViewedVendor');
+    await trackVendorLead(vendorId, customerName, customerPhone, 'customerViewedVendor');
     await User.findByIdAndUpdate(req.user.id, {
       $push: {
         leads: {
           vendorId,
-          customerName: req.user.name,
-          customerPhone: req.user.phone,
+          customerName,
+          customerPhone,
           contactDate: new Date(),
           contactType: 'customerViewedVendor',
           status: 'open',
@@ -112,13 +121,21 @@ exports.getUserLeads = async (req, res) => {
 exports.contactVendor = async (req, res) => {
   const { vendorId, customerName, customerPhone } = req.body;
   try {
-    await trackVendorLead(vendorId, customerName, customerPhone, 'customerContactedVendor');
+    const currentUser = await User.findById(req.user.id);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const nameToSave = customerName || currentUser.name;
+    const phoneToSave = customerPhone || currentUser.phone;
+
+    await trackVendorLead(vendorId, nameToSave, phoneToSave, 'customerContactedVendor');
     await User.findByIdAndUpdate(req.user.id, {
       $push: {
         leads: {
           vendorId,
-          customerName,
-          customerPhone,
+          customerName: nameToSave,
+          customerPhone: phoneToSave,
           contactDate: new Date(),
           contactType: 'customerContactedVendor',
           status: 'open',
