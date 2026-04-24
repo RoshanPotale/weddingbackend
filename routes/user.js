@@ -15,5 +15,6 @@ router.get('/requirements', userController.getUserRequirements);
 router.get('/:userId/requirements', userController.getUserRequirements);
 router.get('/leads', userController.getUserLeads);
 router.put('/lead/:leadId/close', userController.closeUserLead);
+router.put('/lead/:leadId/approve', userController.approveQuotation);
 
 module.exports = router;

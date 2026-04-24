@@ -107,7 +107,7 @@ exports.getUserRequirements = async (req, res) => {
 exports.getUserLeads = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .populate({ path: 'leads.vendorId' })
+      .populate({ path: 'leads.vendorId', select: '-password' })
       .populate({ path: 'leads.requirementId', populate: { path: 'serviceCategory' } });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -143,6 +143,45 @@ exports.contactVendor = async (req, res) => {
       },
     });
     res.json({ message: 'Vendor contact tracked successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.approveQuotation = async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    const lead = await Lead.findById(leadId).populate('requirementId');
+    if (!lead) {
+      return res.status(404).json({ message: 'Lead not found' });
+    }
+
+    if (!lead.requirementId || lead.requirementId.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to approve this quotation.' });
+    }
+
+    if (!lead.quotationUrl) {
+      return res.status(400).json({ message: 'No quotation has been uploaded for this lead.' });
+    }
+
+    lead.quotationStatus = 'approved';
+    lead.approvedByUser = true;
+    lead.approvedAt = new Date();
+    lead.status = 'open';
+    await lead.save();
+
+    await User.findOneAndUpdate(
+      { _id: req.user.id, 'leads.leadId': lead._id },
+      {
+        $set: {
+          'leads.$.quoteStatus': 'approved',
+          'leads.$.approvedByUser': true,
+          'leads.$.approvedAt': lead.approvedAt,
+        },
+      }
+    );
+
+    res.json({ message: 'Quotation approved', lead });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

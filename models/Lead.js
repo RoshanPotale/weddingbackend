@@ -28,6 +28,31 @@ const leadSchema = new mongoose.Schema({
     enum: ['customerViewedVendor', 'vendorViewedCustomer', 'vendorContactedCustomer'],
     required: true,
   },
+  quotationUrl: {
+    type: String,
+  },
+  quotationFileName: {
+    type: String,
+  },
+  quotationUploadedAt: {
+    type: Date,
+  },
+  quotationStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  },
+  approvedByUser: {
+    type: Boolean,
+    default: false,
+  },
+  approvedAt: {
+    type: Date,
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
   status: {
     type: String,
     enum: ['open', 'closed'],

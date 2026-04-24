@@ -2,7 +2,19 @@ const Vendor = require('../models/Vendor');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
 const Requirement = require('../models/Requirement');
+const upload = require('../config/multer');
+const cloudinary = require('../config/cloudinary');
 const { checkVendorSubscription, trackVendorLead } = require('../utils/helpers');
+
+const uploadToCloudinary = (buffer, folder) => {
+  return new Promise((resolve, reject) => {
+    const uploader = cloudinary.uploader.upload_stream({ folder, resource_type: 'auto' }, (error, result) => {
+      if (error) return reject(error);
+      resolve(result);
+    });
+    uploader.end(buffer);
+  });
+};
 
 // Public vendor listing endpoints
 exports.getAllVendors = async (req, res) => {
@@ -29,8 +41,7 @@ exports.getVendorById = async (req, res) => {
 // Protected vendor endpoints
 exports.getLeads = async (req, res) => {
   try {
-    const vendor = await Vendor.findById(req.user.id)
-      .populate({ path: 'vendorLeads.requirementId', populate: { path: 'serviceCategory' } });
+    const vendor = await Vendor.findById(req.user.id);
     if (!vendor) {
       return res.status(404).json({ message: 'Vendor not found.' });
     }
@@ -40,7 +51,18 @@ exports.getLeads = async (req, res) => {
       return res.status(403).json({ message: 'Your subscription has expired or is inactive.' });
     }
 
-    res.json(vendor.vendorLeads || []);
+    const leads = await Lead.find({ vendorId: req.user.id })
+      .populate({ path: 'requirementId', populate: { path: 'serviceCategory userId' } });
+
+    const sanitizedLeads = leads.map((lead) => {
+      const leadObj = lead.toObject();
+      if (leadObj.quotationStatus !== 'approved' && leadObj.contactType !== 'vendorContactedCustomer') {
+        delete leadObj.customerPhone;
+      }
+      return leadObj;
+    });
+
+    res.json(sanitizedLeads);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -140,6 +162,7 @@ exports.viewRequirement = async (req, res) => {
       customerName: requirement.customerName,
       customerPhone: requirement.customerPhone,
       contactType: 'vendorViewedCustomer',
+      quotationStatus: 'pending',
     });
     await lead.save();
 
@@ -154,6 +177,11 @@ exports.viewRequirement = async (req, res) => {
           contactDate: lead.contactDate,
           contactType: lead.contactType,
           status: lead.status,
+          quoteStatus: 'pending',
+          quotationUrl: null,
+          quotationFileName: null,
+          quotationUploadedAt: null,
+          approvedByUser: false,
         },
       },
     });
@@ -172,7 +200,15 @@ exports.viewRequirement = async (req, res) => {
       populate: { path: 'serviceCategory userId' }
     });
 
-    res.json(populatedLead);
+    const responseLead = populatedLead.toObject();
+    if (responseLead.quotationStatus !== 'approved') {
+      delete responseLead.customerPhone;
+      if (responseLead.requirementId?.userId) {
+        delete responseLead.requirementId.userId.phone;
+      }
+    }
+
+    res.json(responseLead);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -185,7 +221,13 @@ exports.viewCustomer = async (req, res) => {
     if (!lead) {
       return res.status(404).json({ message: 'Lead not found' });
     }
+
     await trackVendorLead(req.user.id, lead.customerName, lead.customerPhone, 'vendorViewedCustomer', lead.requirementId, lead._id);
+
+    if (lead.quotationStatus !== 'approved' && lead.contactType !== 'vendorContactedCustomer') {
+      return res.status(403).json({ message: 'Customer contact information is only available after the quotation is approved or after contact is made.' });
+    }
+
     res.json({ customerPhone: lead.customerPhone });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -214,6 +256,52 @@ exports.contactCustomer = async (req, res) => {
     );
 
     res.json({ message: 'Contact recorded' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.uploadQuotation = async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    const lead = await Lead.findById(leadId).populate('requirementId');
+    if (!lead) {
+      return res.status(404).json({ message: 'Lead not found' });
+    }
+
+    if (lead.vendorId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You are not authorized to upload a quote for this lead.' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'Quotation file is required.' });
+    }
+
+    if (req.file.mimetype !== 'application/pdf') {
+      return res.status(400).json({ message: 'Only PDF quotation uploads are supported.' });
+    }
+
+    const result = await uploadToCloudinary(req.file.buffer, `quotations/${req.user.id}`);
+
+    lead.quotationUrl = result.secure_url;
+    lead.quotationFileName = req.file.originalname;
+    lead.quotationUploadedAt = new Date();
+    lead.quotationStatus = 'pending';
+    await lead.save();
+
+    await User.findOneAndUpdate(
+      { 'leads.leadId': lead._id },
+      {
+        $set: {
+          'leads.$.quotationUrl': lead.quotationUrl,
+          'leads.$.quotationFileName': lead.quotationFileName,
+          'leads.$.quotationUploadedAt': lead.quotationUploadedAt,
+          'leads.$.quoteStatus': 'pending',
+        },
+      }
+    );
+
+    res.json({ message: 'Quotation uploaded successfully', lead });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
