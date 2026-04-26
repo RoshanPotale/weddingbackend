@@ -8,10 +8,18 @@ const { checkVendorSubscription, trackVendorLead } = require('../utils/helpers')
 
 const uploadToCloudinary = (buffer, folder) => {
   return new Promise((resolve, reject) => {
-    const uploader = cloudinary.uploader.upload_stream({ folder, resource_type: 'auto' }, (error, result) => {
-      if (error) return reject(error);
-      resolve(result);
-    });
+    const uploader = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: "raw", // IMPORTANT for PDF
+        format: "pdf",
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
     uploader.end(buffer);
   });
 };

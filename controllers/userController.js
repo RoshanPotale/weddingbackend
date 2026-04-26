@@ -3,6 +3,7 @@ const Vendor = require('../models/Vendor');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
 const Category = require('../models/Category');
+const https = require('https');
 const { matchVendorsToRequirement, trackVendorLead } = require('../utils/helpers');
 
 exports.postRequirement = async (req, res) => {
@@ -285,6 +286,47 @@ exports.getRequirementQuotations = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in getRequirementQuotations:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.downloadQuotation = async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    // Find the lead and check if user is authorized
+    const lead = await Lead.findById(leadId).populate('requirementId');
+    if (!lead) {
+      return res.status(404).json({ message: 'Lead not found' });
+    }
+
+    if (lead.requirementId.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to download this quotation' });
+    }
+
+    if (!lead.quotationUrl) {
+      return res.status(404).json({ message: 'No quotation available for download' });
+    }
+
+    // Fetch the PDF from Cloudinary
+    https.get(lead.quotationUrl, (cloudinaryRes) => {
+      if (cloudinaryRes.statusCode !== 200) {
+        return res.status(500).json({ message: 'Failed to fetch quotation from storage' });
+      }
+
+      // Set headers for download
+      const fileName = lead.quotationFileName || 'quotation.pdf';
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+      // Pipe the response to the client
+      cloudinaryRes.pipe(res);
+    }).on('error', (error) => {
+      console.error('Error downloading quotation:', error);
+      res.status(500).json({ message: 'Failed to download quotation' });
+    });
+
+  } catch (error) {
+    console.error('Error in downloadQuotation:', error);
     res.status(500).json({ message: error.message });
   }
 };
