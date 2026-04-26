@@ -230,3 +230,49 @@ exports.closeUserLead = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.getRequirementQuotations = async (req, res) => {
+  const { requirementId } = req.params;
+  try {
+    const requirement = await Requirement.findById(requirementId).populate({
+      path: 'viewedBy.vendorId',
+      select: 'businessName description minPrice maxPrice category phone email',
+    }).populate({
+      path: 'viewedBy.leadId',
+    });
+
+    if (!requirement) {
+      return res.status(404).json({ message: 'Requirement not found' });
+    }
+
+    // Check if current user owns this requirement
+    if (requirement.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to view quotations for this requirement' });
+    }
+
+    // Filter viewedBy to only include entries with quotations
+    const quotations = requirement.viewedBy
+      .filter(entry => entry.quotationUrl)
+      .map(entry => ({
+        vendorId: entry.vendorId,
+        quotationUrl: entry.quotationUrl,
+        quotationFileName: entry.quotationFileName,
+        quotationUploadedAt: entry.quotationUploadedAt,
+        leadId: entry.leadId,
+      }));
+
+    res.json({
+      requirement: {
+        _id: requirement._id,
+        description: requirement.description,
+        budget: requirement.budget,
+        city: requirement.city,
+        eventDate: requirement.eventDate,
+        customerName: requirement.customerName,
+      },
+      quotations,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -56,7 +56,8 @@ exports.getLeads = async (req, res) => {
 
     const sanitizedLeads = leads.map((lead) => {
       const leadObj = lead.toObject();
-      if (leadObj.quotationStatus !== 'approved' && leadObj.contactType !== 'vendorContactedCustomer') {
+      // Only show customer phone if user approved the quotation
+      if (!leadObj.approvedByUser) {
         delete leadObj.customerPhone;
       }
       return leadObj;
@@ -149,10 +150,12 @@ exports.viewRequirement = async (req, res) => {
       return res.status(404).json({ message: 'Requirement not found' });
     }
 
-    // Track view
-    if (!requirement.viewedBy.includes(req.user.id)) {
+    // Track view - check if vendor already viewed
+    const vendorAlreadyViewed = requirement.viewedBy.some(v => v.vendorId?.toString() === req.user.id);
+    
+    if (!vendorAlreadyViewed) {
       requirement.views = (requirement.views || 0) + 1;
-      requirement.viewedBy.push(req.user.id);
+      requirement.viewedBy.push({ vendorId: req.user.id });
       await requirement.save();
     }
 
@@ -273,6 +276,11 @@ exports.uploadQuotation = async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to upload a quote for this lead.' });
     }
 
+    // Check if quotation already exists
+    if (lead.quotationUrl) {
+      return res.status(400).json({ message: 'A quotation has already been uploaded for this lead. You cannot upload another one.' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ message: 'Quotation file is required.' });
     }
@@ -300,6 +308,25 @@ exports.uploadQuotation = async (req, res) => {
         },
       }
     );
+
+    // Update the requirement's viewedBy array with quotation info
+    if (lead.requirementId) {
+      await Requirement.findByIdAndUpdate(
+        lead.requirementId._id,
+        {
+          $set: {
+            'viewedBy.$[elem].quotationUrl': lead.quotationUrl,
+            'viewedBy.$[elem].quotationFileName': lead.quotationFileName,
+            'viewedBy.$[elem].quotationUploadedAt': lead.quotationUploadedAt,
+            'viewedBy.$[elem].leadId': lead._id,
+          },
+        },
+        {
+          arrayFilters: [{ 'elem.vendorId': req.user.id }],
+          new: true,
+        }
+      );
+    }
 
     res.json({ message: 'Quotation uploaded successfully', lead });
   } catch (error) {

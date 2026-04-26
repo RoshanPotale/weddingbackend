@@ -43,8 +43,17 @@ const requirementSchema = new mongoose.Schema({
     default: 0,
   },
   viewedBy: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Vendor',
+    vendorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vendor',
+    },
+    quotationUrl: String,
+    quotationFileName: String,
+    quotationUploadedAt: Date,
+    leadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Lead',
+    },
   }],
 }, { timestamps: true });
 
