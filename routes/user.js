@@ -13,9 +13,9 @@ router.get('/vendor/:vendorId', userController.viewVendorDetails);
 router.post('/contact-vendor', userController.contactVendor);
 router.get('/requirements', userController.getUserRequirements);
 router.get('/leads', userController.getUserLeads);
-router.get('/requirement/:requirementId/quotations', userController.getRequirementQuotations);
-router.get('/:userId/requirements', userController.getUserRequirements);
+router.get('/requirements/:requirementId/quotations', userController.getRequirementQuotations);
 router.put('/lead/:leadId/close', userController.closeUserLead);
 router.put('/lead/:leadId/approve', userController.approveQuotation);
+router.get('/:userId/requirements', userController.getUserRequirements);
 
 module.exports = router;

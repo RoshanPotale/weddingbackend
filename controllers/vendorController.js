@@ -311,8 +311,11 @@ exports.uploadQuotation = async (req, res) => {
 
     // Update the requirement's viewedBy array with quotation info
     if (lead.requirementId) {
-      await Requirement.findByIdAndUpdate(
-        lead.requirementId._id,
+      const updateResult = await Requirement.updateOne(
+        {
+          _id: lead.requirementId._id,
+          'viewedBy.vendorId': req.user.id,
+        },
         {
           $set: {
             'viewedBy.$[elem].quotationUrl': lead.quotationUrl,
@@ -323,9 +326,25 @@ exports.uploadQuotation = async (req, res) => {
         },
         {
           arrayFilters: [{ 'elem.vendorId': req.user.id }],
-          new: true,
         }
       );
+
+      if (updateResult.matchedCount === 0) {
+        await Requirement.findByIdAndUpdate(
+          lead.requirementId._id,
+          {
+            $push: {
+              viewedBy: {
+                vendorId: req.user.id,
+                quotationUrl: lead.quotationUrl,
+                quotationFileName: lead.quotationFileName,
+                quotationUploadedAt: lead.quotationUploadedAt,
+                leadId: lead._id,
+              },
+            },
+          }
+        );
+      }
     }
 
     res.json({ message: 'Quotation uploaded successfully', lead });

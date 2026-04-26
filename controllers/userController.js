@@ -233,6 +233,9 @@ exports.closeUserLead = async (req, res) => {
 
 exports.getRequirementQuotations = async (req, res) => {
   const { requirementId } = req.params;
+  console.log('getRequirementQuotations called with requirementId:', requirementId);
+  console.log('User:', req.user);
+
   try {
     const requirement = await Requirement.findById(requirementId).populate({
       path: 'viewedBy.vendorId',
@@ -241,14 +244,20 @@ exports.getRequirementQuotations = async (req, res) => {
       path: 'viewedBy.leadId',
     });
 
+    console.log('Requirement found:', !!requirement);
+
     if (!requirement) {
+      console.log('Requirement not found');
       return res.status(404).json({ message: 'Requirement not found' });
     }
 
     // Check if current user owns this requirement
     if (requirement.userId.toString() !== req.user.id) {
+      console.log('User not authorized. Requirement userId:', requirement.userId, 'Request userId:', req.user.id);
       return res.status(403).json({ message: 'Not authorized to view quotations for this requirement' });
     }
+
+    console.log('User authorized, processing quotations');
 
     // Filter viewedBy to only include entries with quotations
     const quotations = requirement.viewedBy
@@ -260,6 +269,8 @@ exports.getRequirementQuotations = async (req, res) => {
         quotationUploadedAt: entry.quotationUploadedAt,
         leadId: entry.leadId,
       }));
+
+    console.log('Quotations found:', quotations.length);
 
     res.json({
       requirement: {
@@ -273,6 +284,7 @@ exports.getRequirementQuotations = async (req, res) => {
       quotations,
     });
   } catch (error) {
+    console.error('Error in getRequirementQuotations:', error);
     res.status(500).json({ message: error.message });
   }
 };
