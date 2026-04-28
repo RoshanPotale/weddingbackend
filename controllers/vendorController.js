@@ -11,8 +11,7 @@ const uploadToCloudinary = (buffer, folder) => {
     const uploader = cloudinary.uploader.upload_stream(
       {
         folder,
-        resource_type: "raw", // IMPORTANT for PDF
-        format: "pdf",
+        resource_type: 'auto',
       },
       (error, result) => {
         if (error) return reject(error);
@@ -64,8 +63,14 @@ exports.getLeads = async (req, res) => {
 
     const sanitizedLeads = leads.map((lead) => {
       const leadObj = lead.toObject();
-      // Only show customer phone if user approved the quotation
-      if (!leadObj.approvedByUser) {
+      // Check if this vendor's quotation is approved by the user in the Requirement model
+      const viewedByEntry = leadObj.requirementId?.viewedBy?.find(
+        (viewed) => viewed.vendorId.toString() === req.user.id.toString()
+      );
+      const isApproved = viewedByEntry?.approvedByUser || false;
+      
+      // Only show customer phone if user approved this vendor's quotation
+      if (!isApproved) {
         delete leadObj.customerPhone;
       }
       return leadObj;
@@ -356,6 +361,73 @@ exports.uploadQuotation = async (req, res) => {
     }
 
     res.json({ message: 'Quotation uploaded successfully', lead });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const updateFields = {};
+    const { businessName, ownerName, phone, whatsapp, address, city, experience, teamSize, description, pricingRange, perPlateCharge, aadhaarId, panId, gstId } = req.body;
+
+    if (businessName) updateFields.businessName = businessName;
+    if (ownerName) updateFields.ownerName = ownerName;
+    if (phone) updateFields.phone = phone;
+    if (whatsapp) updateFields.whatsapp = whatsapp;
+    if (address) updateFields.address = address;
+    if (city) updateFields.city = city;
+    if (experience !== undefined) updateFields.experience = experience;
+    if (teamSize !== undefined) updateFields.teamSize = teamSize;
+    if (description) updateFields.description = description;
+    if (pricingRange) updateFields.pricingRange = pricingRange;
+    if (perPlateCharge !== undefined) updateFields.perPlateCharge = perPlateCharge;
+
+    if (req.files.profileImage) {
+      const result = await uploadToCloudinary(req.files.profileImage[0].buffer, `vendors/profile/${req.user.id}`);
+      updateFields.profileImage = result.secure_url;
+    }
+
+    if (req.files.portfolioImages) {
+      const portfolioUrls = [];
+      for (const file of req.files.portfolioImages) {
+        const result = await uploadToCloudinary(file.buffer, `vendors/portfolio/${req.user.id}`);
+        portfolioUrls.push(result.secure_url);
+      }
+      updateFields.portfolioImages = portfolioUrls;
+    }
+
+    if (req.files.aadhaarDocument) {
+      const result = await uploadToCloudinary(req.files.aadhaarDocument[0].buffer, 'vendors/documents');
+      updateFields.aadhaarDocument = {
+        documentId: aadhaarId || '',
+        documentUrl: result.secure_url
+      };
+    }
+
+    if (req.files.panDocument) {
+      const result = await uploadToCloudinary(req.files.panDocument[0].buffer, 'vendors/documents');
+      updateFields.panDocument = {
+        documentId: panId || '',
+        documentUrl: result.secure_url
+      };
+    }
+
+    if (req.files.gstDocument) {
+      const result = await uploadToCloudinary(req.files.gstDocument[0].buffer, 'vendors/documents');
+      updateFields.gstDocument = {
+        documentId: gstId || '',
+        documentUrl: result.secure_url
+      };
+    }
+
+    const updatedVendor = await Vendor.findByIdAndUpdate(req.user.id, updateFields, { new: true }).populate('category');
+    res.json({ message: 'Profile updated successfully', vendor: updatedVendor });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

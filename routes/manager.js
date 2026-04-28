@@ -3,6 +3,7 @@ const router = express.Router();
 const managerController = require('../controllers/managerController');
 const authMiddleware = require('../middleware/auth');
 const roleMiddleware = require('../middleware/role');
+const upload = require('../config/multer');
 
 router.use(authMiddleware);
 router.use(roleMiddleware(['manager']));

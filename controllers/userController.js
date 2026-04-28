@@ -4,7 +4,25 @@ const Lead = require('../models/Lead');
 const User = require('../models/User');
 const Category = require('../models/Category');
 const https = require('https');
+const cloudinary = require('../config/cloudinary');
 const { matchVendorsToRequirement, trackVendorLead } = require('../utils/helpers');
+
+const uploadToCloudinary = (buffer, folder) => {
+  return new Promise((resolve, reject) => {
+    const uploader = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: 'auto',
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    uploader.end(buffer);
+  });
+};
 
 exports.postRequirement = async (req, res) => {
   const { customerName, customerPhone, serviceCategory, city, eventDate, budget, guestCount, description } = req.body;
@@ -78,18 +96,28 @@ exports.viewVendorDetails = async (req, res) => {
 
     // Track customer viewed vendor and save to user's direct leads
     await trackVendorLead(vendorId, customerName, customerPhone, 'customerViewedVendor');
-    await User.findByIdAndUpdate(req.user.id, {
-      $push: {
-        leads: {
-          vendorId,
-          customerName,
-          customerPhone,
-          contactDate: new Date(),
-          contactType: 'customerViewedVendor',
-          status: 'open',
+    
+    // Check if this lead already exists to avoid duplicates
+    const existingLead = currentUser.leads.find(
+      lead => lead.vendorId && lead.vendorId.toString() === vendorId.toString()
+    );
+    
+    if (!existingLead) {
+      // Only add the lead if it doesn't already exist
+      await User.findByIdAndUpdate(req.user.id, {
+        $push: {
+          leads: {
+            vendorId,
+            customerName,
+            customerPhone,
+            contactDate: new Date(),
+            contactType: 'customerViewedVendor',
+            status: 'open',
+          },
         },
-      },
-    });
+      });
+    }
+    
     res.json(vendor);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -98,7 +126,7 @@ exports.viewVendorDetails = async (req, res) => {
 
 exports.getUserRequirements = async (req, res) => {
   try {
-    const requirements = await Requirement.find({ userId: req.user.id }).populate('serviceCategory');
+    const requirements = await Requirement.find({ userId: req.user.id }).populate('serviceCategory').sort({ createdAt: -1 });
     res.json(requirements);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -131,18 +159,41 @@ exports.contactVendor = async (req, res) => {
     const phoneToSave = customerPhone || currentUser.phone;
 
     await trackVendorLead(vendorId, nameToSave, phoneToSave, 'customerContactedVendor');
-    await User.findByIdAndUpdate(req.user.id, {
-      $push: {
-        leads: {
-          vendorId,
-          customerName: nameToSave,
-          customerPhone: phoneToSave,
-          contactDate: new Date(),
-          contactType: 'customerContactedVendor',
-          status: 'open',
+    
+    // Check if this lead already exists to avoid duplicates
+    const existingLead = currentUser.leads.find(
+      lead => lead.vendorId && lead.vendorId.toString() === vendorId.toString()
+    );
+    
+    if (!existingLead) {
+      // Only add the lead if it doesn't already exist
+      await User.findByIdAndUpdate(req.user.id, {
+        $push: {
+          leads: {
+            vendorId,
+            customerName: nameToSave,
+            customerPhone: phoneToSave,
+            contactDate: new Date(),
+            contactType: 'customerContactedVendor',
+            status: 'open',
+          },
         },
-      },
-    });
+      });
+    } else {
+      // Update existing lead with new contact information
+      await User.findByIdAndUpdate(
+        { _id: req.user.id, 'leads.vendorId': vendorId },
+        {
+          $set: {
+            'leads.$.contactDate': new Date(),
+            'leads.$.contactType': 'customerContactedVendor',
+            'leads.$.customerName': nameToSave,
+            'leads.$.customerPhone': phoneToSave,
+          },
+        }
+      );
+    }
+    
     res.json({ message: 'Vendor contact tracked successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -171,6 +222,17 @@ exports.approveQuotation = async (req, res) => {
     lead.status = 'open';
     await lead.save();
 
+    // Update the Requirement's viewedBy array to set approvedByUser = true
+    await Requirement.findOneAndUpdate(
+      { _id: lead.requirementId._id, 'viewedBy.leadId': lead._id },
+      {
+        $set: {
+          'viewedBy.$.approvedByUser': true,
+          'viewedBy.$.approvedByUserId': req.user.id,
+        },
+      }
+    );
+
     await User.findOneAndUpdate(
       { _id: req.user.id, 'leads.leadId': lead._id },
       {
@@ -191,6 +253,7 @@ exports.approveQuotation = async (req, res) => {
 exports.closeUserLead = async (req, res) => {
   const { leadId } = req.params;
   try {
+    // Update the lead status
     let user = await User.findOneAndUpdate(
       { _id: req.user.id, 'leads.leadId': leadId },
       {
@@ -225,6 +288,12 @@ exports.closeUserLead = async (req, res) => {
 
     const leadRecordId = closedLead?.leadId?.toString() || leadId;
     await Lead.findByIdAndUpdate(leadRecordId, { status: 'closed' });
+
+    // Update the requirement's leadAction status
+    const lead = await Lead.findById(leadRecordId).populate('requirementId');
+    if (lead && lead.requirementId) {
+      await Requirement.findByIdAndUpdate(lead.requirementId._id, { leadAction: 'closed' });
+    }
 
     res.json({ message: 'Lead closed', lead: closedLead });
   } catch (error) {
@@ -269,6 +338,8 @@ exports.getRequirementQuotations = async (req, res) => {
         quotationFileName: entry.quotationFileName,
         quotationUploadedAt: entry.quotationUploadedAt,
         leadId: entry.leadId,
+        approvedByUser: entry.approvedByUser || false,
+        approvedByUserId: entry.approvedByUserId,
       }));
 
     console.log('Quotations found:', quotations.length);
@@ -299,34 +370,90 @@ exports.downloadQuotation = async (req, res) => {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
-    if (lead.requirementId.userId.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Not authorized to download this quotation' });
+    // Check authorization
+    if (lead.requirementId && lead.requirementId.userId) {
+      if (lead.requirementId.userId.toString() !== req.user.id) {
+        return res.status(403).json({ message: 'Not authorized to download this quotation' });
+      }
+    } else {
+      return res.status(400).json({ message: 'Requirement not found for this lead' });
     }
 
     if (!lead.quotationUrl) {
       return res.status(404).json({ message: 'No quotation available for download' });
     }
 
-    // Fetch the PDF from Cloudinary
-    https.get(lead.quotationUrl, (cloudinaryRes) => {
-      if (cloudinaryRes.statusCode !== 200) {
-        return res.status(500).json({ message: 'Failed to fetch quotation from storage' });
+    const streamCloudinaryFile = (fileUrl, res, fileName, inline = false, redirectCount = 0) => {
+      if (redirectCount > 5) {
+        return res.status(500).json({ message: 'Too many redirects while fetching quotation' });
       }
 
-      // Set headers for download
-      const fileName = lead.quotationFileName || 'quotation.pdf';
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      https.get(fileUrl, (cloudinaryRes) => {
+        if ([301, 302, 303, 307, 308].includes(cloudinaryRes.statusCode) && cloudinaryRes.headers.location) {
+          cloudinaryRes.destroy();
+          return streamCloudinaryFile(cloudinaryRes.headers.location, res, fileName, inline, redirectCount + 1);
+        }
 
-      // Pipe the response to the client
-      cloudinaryRes.pipe(res);
-    }).on('error', (error) => {
-      console.error('Error downloading quotation:', error);
-      res.status(500).json({ message: 'Failed to download quotation' });
-    });
+        if (cloudinaryRes.statusCode !== 200) {
+          let errorPayload = '';
+          cloudinaryRes.on('data', (chunk) => {
+            errorPayload += chunk.toString();
+          });
+          cloudinaryRes.on('end', () => {
+            console.error('Cloudinary returned non-200 status:', cloudinaryRes.statusCode, errorPayload);
+            return res.status(500).json({ message: 'Failed to fetch quotation from storage' });
+          });
+          return;
+        }
+
+        const dispositionType = inline ? 'inline' : 'attachment';
+        const encodedFileName = encodeURIComponent(fileName || 'quotation.pdf');
+        const contentType = cloudinaryRes.headers['content-type'] || 'application/pdf';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `${dispositionType}; filename="${encodedFileName}"`);
+        if (cloudinaryRes.headers['content-length']) {
+          res.setHeader('Content-Length', cloudinaryRes.headers['content-length']);
+        }
+
+        cloudinaryRes.pipe(res);
+      }).on('error', (error) => {
+        console.error('Error downloading quotation:', error);
+        res.status(500).json({ message: 'Failed to download quotation' });
+      });
+    };
+
+    const fileName = lead.quotationFileName || 'quotation.pdf';
+    const inlineView = req.query.inline === 'true';
+    streamCloudinaryFile(lead.quotationUrl, res, fileName, inlineView);
 
   } catch (error) {
     console.error('Error in downloadQuotation:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const updateFields = {};
+    const { name, phone, city } = req.body;
+
+    if (name) updateFields.name = name;
+    if (phone) updateFields.phone = phone;
+    if (city) updateFields.city = city;
+
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer, `users/profile/${req.user.id}`);
+      updateFields.profileImage = result.secure_url;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, updateFields, { new: true });
+    res.json({ message: 'Profile updated successfully', user: updatedUser });
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };

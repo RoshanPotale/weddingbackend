@@ -53,21 +53,27 @@ const vendorSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  perPlateCharge: {
+    type: Number, // Optional field for per plate charge
+  },
   profileImage: {
     type: String, // Cloudinary URL
   },
   portfolioImages: [{
     type: String, // Cloudinary URLs
   }],
-  // Documents
+  // Documents with ID and URL
   aadhaarDocument: {
-    type: String, // Cloudinary URL
+    documentId: String, // Aadhaar ID number
+    documentUrl: String, // Cloudinary URL
   },
   panDocument: {
-    type: String, // Cloudinary URL
+    documentId: String, // PAN ID number
+    documentUrl: String, // Cloudinary URL
   },
   gstDocument: {
-    type: String, // Cloudinary URL
+    documentId: String, // GST ID number
+    documentUrl: String, // Cloudinary URL
   },
   // Relationships
   createdByEmployeeId: {

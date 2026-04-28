@@ -19,7 +19,8 @@ exports.createVendor = async (req, res) => {
     const employee = await Employee.findById(req.user.id);
     const {
       businessName, ownerName, phone, email, password, whatsapp, address, city, category,
-      experience, teamSize, description, pricingRange, categorySpecificFields
+      experience, teamSize, description, pricingRange, categorySpecificFields,
+      aadhaarId, panId, gstId
     } = req.body;
 
     // Find category by name or use ObjectId directly
@@ -38,9 +39,9 @@ exports.createVendor = async (req, res) => {
 
     let profileImageUrl = null;
     let portfolioImagesUrls = [];
-    let aadhaarUrl = null;
-    let panUrl = null;
-    let gstUrl = null;
+    let aadhaarData = null;
+    let panData = null;
+    let gstData = null;
 
     if (req.files.profileImage) {
       profileImageUrl = await uploadToCloudinary(req.files.profileImage[0].buffer, 'vendors/profile');
@@ -54,15 +55,27 @@ exports.createVendor = async (req, res) => {
     }
 
     if (req.files.aadhaarDocument) {
-      aadhaarUrl = await uploadToCloudinary(req.files.aadhaarDocument[0].buffer, 'vendors/documents');
+      const url = await uploadToCloudinary(req.files.aadhaarDocument[0].buffer, 'vendors/documents');
+      aadhaarData = {
+        documentId: aadhaarId || '',
+        documentUrl: url
+      };
     }
 
     if (req.files.panDocument) {
-      panUrl = await uploadToCloudinary(req.files.panDocument[0].buffer, 'vendors/documents');
+      const url = await uploadToCloudinary(req.files.panDocument[0].buffer, 'vendors/documents');
+      panData = {
+        documentId: panId || '',
+        documentUrl: url
+      };
     }
 
     if (req.files.gstDocument) {
-      gstUrl = await uploadToCloudinary(req.files.gstDocument[0].buffer, 'vendors/documents');
+      const url = await uploadToCloudinary(req.files.gstDocument[0].buffer, 'vendors/documents');
+      gstData = {
+        documentId: gstId || '',
+        documentUrl: url
+      };
     }
 
     const vendor = new Vendor({
@@ -70,9 +83,9 @@ exports.createVendor = async (req, res) => {
       experience, teamSize, description, pricingRange,
       profileImage: profileImageUrl,
       portfolioImages: portfolioImagesUrls,
-      aadhaarDocument: aadhaarUrl,
-      panDocument: panUrl,
-      gstDocument: gstUrl,
+      aadhaarDocument: aadhaarData,
+      panDocument: panData,
+      gstDocument: gstData,
       createdByEmployeeId: req.user.id,
       managerId: employee.managerId,
       categorySpecificFields: JSON.parse(categorySpecificFields || '{}'),
@@ -80,6 +93,31 @@ exports.createVendor = async (req, res) => {
 
     await vendor.save();
     res.status(201).json(vendor);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.user.id);
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+
+    const updateFields = {};
+    const { name, phone } = req.body;
+
+    if (name) updateFields.name = name;
+    if (phone) updateFields.phone = phone;
+
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer, `employees/profile/${req.user.id}`);
+      updateFields.profileImage = result;
+    }
+
+    const updatedEmployee = await Employee.findByIdAndUpdate(req.user.id, updateFields, { new: true });
+    res.json({ message: 'Profile updated successfully', employee: updatedEmployee });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -38,6 +38,11 @@ const requirementSchema = new mongoose.Schema({
   description: {
     type: String,
   },
+  leadAction: {
+    type: String,
+    enum: ['open', 'closed'],
+    default: 'open',
+  },
   views: {
     type: Number,
     default: 0,
@@ -54,6 +59,15 @@ const requirementSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Lead',
     },
+    approvedByUser: {
+      type: Boolean,
+      default: false,
+    },
+    approvedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    
   }],
 }, { timestamps: true });
 
