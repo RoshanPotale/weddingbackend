@@ -157,30 +157,87 @@ exports.getRequirements = async (req, res) => {
 
 exports.viewRequirement = async (req, res) => {
   const { requirementId } = req.params;
+
   try {
     const requirement = await Requirement.findById(requirementId);
+
     if (!requirement) {
-      return res.status(404).json({ message: 'Requirement not found' });
+      return res.status(404).json({
+        message: "Requirement not found",
+      });
     }
 
-    // Track view - check if vendor already viewed
-    const vendorAlreadyViewed = requirement.viewedBy.some(v => v.vendorId?.toString() === req.user.id);
-    
+    /*
+    STEP 1:
+    Check if lead already exists
+    */
+
+    let existingLead = await Lead.findOne({
+      requirementId: requirement._id,
+      vendorId: req.user.id,
+    }).populate({
+      path: "requirementId",
+      populate: {
+        path: "serviceCategory userId",
+      },
+    });
+
+    /*
+    STEP 2:
+    If already exists → return existing lead
+    */
+
+    if (existingLead) {
+      const responseLead = existingLead.toObject();
+
+      if (responseLead.quotationStatus !== "approved") {
+        delete responseLead.customerPhone;
+
+        if (responseLead.requirementId?.userId) {
+          delete responseLead.requirementId.userId.phone;
+        }
+      }
+
+      return res.json(responseLead);
+    }
+
+    /*
+    STEP 3:
+    First time only → increment views
+    */
+
+    const vendorAlreadyViewed = requirement.viewedBy.some(
+      (v) => v.vendorId?.toString() === req.user.id
+    );
+
     if (!vendorAlreadyViewed) {
       requirement.views = (requirement.views || 0) + 1;
-      requirement.viewedBy.push({ vendorId: req.user.id });
+
+      requirement.viewedBy.push({
+        vendorId: req.user.id,
+      });
+
       await requirement.save();
     }
 
-    const lead = new Lead({
+    /*
+    STEP 4:
+    Create lead only once
+    */
+
+    const lead = await Lead.create({
       requirementId: requirement._id,
       vendorId: req.user.id,
       customerName: requirement.customerName,
       customerPhone: requirement.customerPhone,
-      contactType: 'vendorViewedCustomer',
-      quotationStatus: 'pending',
+      contactType: "vendorViewedCustomer",
+      quotationStatus: "pending",
     });
-    await lead.save();
+
+    /*
+    STEP 5:
+    Push to user leads only once
+    */
 
     await User.findByIdAndUpdate(requirement.userId, {
       $push: {
@@ -193,7 +250,7 @@ exports.viewRequirement = async (req, res) => {
           contactDate: lead.contactDate,
           contactType: lead.contactType,
           status: lead.status,
-          quoteStatus: 'pending',
+          quoteStatus: "pending",
           quotationUrl: null,
           quotationFileName: null,
           quotationUploadedAt: null,
@@ -206,19 +263,23 @@ exports.viewRequirement = async (req, res) => {
       req.user.id,
       requirement.customerName,
       requirement.customerPhone,
-      'vendorViewedCustomer',
+      "vendorViewedCustomer",
       requirement._id,
       lead._id
     );
 
     const populatedLead = await Lead.findById(lead._id).populate({
-      path: 'requirementId',
-      populate: { path: 'serviceCategory userId' }
+      path: "requirementId",
+      populate: {
+        path: "serviceCategory userId",
+      },
     });
 
     const responseLead = populatedLead.toObject();
-    if (responseLead.quotationStatus !== 'approved') {
+
+    if (responseLead.quotationStatus !== "approved") {
       delete responseLead.customerPhone;
+
       if (responseLead.requirementId?.userId) {
         delete responseLead.requirementId.userId.phone;
       }
@@ -226,7 +287,9 @@ exports.viewRequirement = async (req, res) => {
 
     res.json(responseLead);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
