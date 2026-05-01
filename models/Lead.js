@@ -4,7 +4,7 @@ const leadSchema = new mongoose.Schema({
   requirementId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Requirement',
-    required: true,
+    // required: true, // Made optional for direct leads
   },
   vendorId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -25,7 +25,7 @@ const leadSchema = new mongoose.Schema({
   },
   contactType: {
     type: String,
-    enum: ['customerViewedVendor', 'vendorViewedCustomer', 'vendorContactedCustomer'],
+    enum: ['customerViewedVendor', 'vendorViewedCustomer', 'vendorContactedCustomer', 'customerContactedVendor'],
     required: true,
   },
   quotationUrl: {

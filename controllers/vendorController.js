@@ -437,7 +437,7 @@ exports.updateProfile = async (req, res) => {
     }
 
     const updateFields = {};
-    const { businessName, ownerName, phone, whatsapp, address, city, experience, teamSize, description, pricingRange, perPlateCharge, aadhaarId, panId, gstId } = req.body;
+    const { businessName, ownerName, phone, whatsapp, address, city, experience, teamSize, description, pricingRange, perPlateCharge, aadhaarId, panId, gstId, instagram, facebook, youtube, linkedin, twitter } = req.body;
 
     if (businessName) updateFields.businessName = businessName;
     if (ownerName) updateFields.ownerName = ownerName;
@@ -450,6 +450,11 @@ exports.updateProfile = async (req, res) => {
     if (description) updateFields.description = description;
     if (pricingRange) updateFields.pricingRange = pricingRange;
     if (perPlateCharge !== undefined) updateFields.perPlateCharge = perPlateCharge;
+    if (instagram !== undefined) updateFields.instagram = instagram;
+    if (facebook !== undefined) updateFields.facebook = facebook;
+    if (youtube !== undefined) updateFields.youtube = youtube;
+    if (linkedin !== undefined) updateFields.linkedin = linkedin;
+    if (twitter !== undefined) updateFields.twitter = twitter;
 
     if (req.files.profileImage) {
       const result = await uploadToCloudinary(req.files.profileImage[0].buffer, `vendors/profile/${req.user.id}`);

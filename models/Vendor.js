@@ -49,6 +49,22 @@ const vendorSchema = new mongoose.Schema({
   description: {
     type: String,
   },
+  // Social Media Links
+  instagram: {
+    type: String,
+  },
+  facebook: {
+    type: String,
+  },
+  youtube: {
+    type: String,
+  },
+  linkedin: {
+    type: String,
+  },
+  twitter: {
+    type: String,
+  },
   pricingRange: {
     type: String,
     required: true,
