@@ -31,6 +31,7 @@ const employeeRoutes = require('./routes/employee');
 const vendorRoutes = require('./routes/vendor');
 const userRoutes = require('./routes/user');
 const categoryRoutes = require('./routes/category');
+const subCategoryRoutes = require('./routes/subCategoryRoutes'); // Corrected
 const profileRoutes = require('./routes/profile');
 
 app.use('/auth', authRoutes);
@@ -40,6 +41,7 @@ app.use('/employee', employeeRoutes);
 app.use('/vendor', vendorRoutes);
 app.use('/user', userRoutes);
 app.use('/category', categoryRoutes);
+app.use('/subcategory', subCategoryRoutes); // NEW
 app.use('/profile', profileRoutes);
 
 const PORT = process.env.PORT || 5000;

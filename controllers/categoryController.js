@@ -1,4 +1,5 @@
 const Category = require('../models/Category');
+const SubCategory = require('../models/SubCategory');
 
 // Create a new category (Admin only)
 exports.createCategory = async (req, res) => {
@@ -95,8 +96,11 @@ exports.deleteCategory = async (req, res) => {
       return res.status(404).json({ message: 'Category not found' });
     }
 
+    // Delete associated subcategories first
+    await SubCategory.deleteMany({ category: categoryId });
+
     await Category.findByIdAndDelete(categoryId);
-    res.json({ message: 'Category deleted successfully' });
+    res.json({ message: 'Category and its subcategories deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

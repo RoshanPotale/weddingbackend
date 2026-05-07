@@ -26,7 +26,11 @@ const uploadToCloudinary = (buffer, folder) => {
 // Public vendor listing endpoints
 exports.getAllVendors = async (req, res) => {
   try {
-    const vendors = await Vendor.find({ status: 'approved' }).populate('category').select('-password');
+    const vendors = await Vendor.find({ status: 'approved' })
+      .populate('category')
+      .populate('subCategory')
+      .select('-password')
+      .lean();
     res.json(vendors);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -35,7 +39,11 @@ exports.getAllVendors = async (req, res) => {
 
 exports.getVendorById = async (req, res) => {
   try {
-    const vendor = await Vendor.findById(req.params.id).populate('category').select('-password');
+    const vendor = await Vendor.findById(req.params.id)
+      .populate('category')
+      .populate('subCategory')
+      .select('-password')
+      .lean();
     if (!vendor) {
       return res.status(404).json({ message: 'Vendor not found' });
     }
@@ -361,8 +369,10 @@ exports.uploadQuotation = async (req, res) => {
       return res.status(400).json({ message: 'Quotation file is required.' });
     }
 
-    if (req.file.mimetype !== 'application/pdf') {
-      return res.status(400).json({ message: 'Only PDF quotation uploads are supported.' });
+    // Check if the file is a PDF or an image
+    const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedMimeTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({ message: 'Only PDF and Image (JPEG, JPG, PNG) quotation uploads are supported.' });
     }
 
     const result = await uploadToCloudinary(req.file.buffer, `quotations/${req.user.id}`);

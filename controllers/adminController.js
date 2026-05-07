@@ -4,6 +4,7 @@ const Vendor = require('../models/Vendor');
 const User = require('../models/User');
 const Employee = require('../models/Employee');
 const Category = require('../models/Category');
+const SubCategory = require('../models/SubCategory');
 
 exports.createManager = async (req, res) => {
   const { name, email, phone, password } = req.body;
@@ -95,9 +96,14 @@ exports.getManagers = async (req, res) => {
 
 exports.getVendors = async (req, res) => {
   try {
-    const vendors = await Vendor.find().populate('category');
+    console.log('📋 Fetching all vendors for admin...');
+    const vendors = await Vendor.find()
+      .populate('category')
+      .populate('subCategory')
+      .lean();
     res.json(vendors);
   } catch (error) {
+    console.error('❌ Error in getVendors:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -105,24 +111,36 @@ exports.getVendors = async (req, res) => {
 // Dashboard stats
 exports.getDashboardStats = async (req, res) => {
   try {
+    console.log('📊 Fetching dashboard stats...');
     const totalUsers = await User.countDocuments();
     const totalVendors = await Vendor.countDocuments();
     const totalManagers = await Manager.countDocuments();
     const totalEmployees = await Employee.countDocuments();
     const totalCategories = await Category.countDocuments();
+    
+    let totalSubCategories = 0;
+    try {
+      totalSubCategories = await SubCategory.countDocuments();
+    } catch (subErr) {
+      console.error('Error counting subcategories:', subErr);
+    }
+
     const approvedVendors = await Vendor.countDocuments({ status: 'approved' });
     const pendingVendors = await Vendor.countDocuments({ status: 'pending' });
 
+    console.log('✅ Stats fetched successfully');
     res.json({
       totalUsers,
       totalVendors,
       totalManagers,
       totalEmployees,
       totalCategories,
+      totalSubCategories,
       approvedVendors,
       pendingVendors,
     });
   } catch (error) {
+    console.error('❌ Error in getDashboardStats:', error);
     res.status(500).json({ message: error.message });
   }
 };

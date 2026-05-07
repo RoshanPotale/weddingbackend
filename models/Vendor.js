@@ -38,6 +38,10 @@ const vendorSchema = new mongoose.Schema({
     ref: 'Category',
     required: true,
   },
+  subCategory: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SubCategory',
+  },
   experience: {
     type: Number,
     required: true,

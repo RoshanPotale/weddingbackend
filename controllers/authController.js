@@ -100,7 +100,12 @@ exports.userRegister = async (req, res) => {
 
 // Vendor Direct Registration (Website Registration - Status: Pending Admin Approval)
 exports.vendorRegister = async (req, res) => {
-  const { businessName, ownerName, email, password, phone, whatsapp, address, city, state, zipCode, category, experience, teamSize, description, pricingRange } = req.body;
+  const { 
+    businessName, ownerName, email, password, phone, whatsapp, 
+    address, city, state, zipCode, category, subCategory, 
+    experience, teamSize, description, pricingRange,
+    instagram, facebook, youtube, linkedin, twitter 
+  } = req.body;
   try {
     // Check if vendor already exists
     const existingVendor = await Vendor.findOne({ email });
@@ -133,10 +138,16 @@ exports.vendorRegister = async (req, res) => {
       state,
       zipCode,
       category: categoryId,
+      subCategory,
       experience,
       teamSize,
       description,
       pricingRange,
+      instagram,
+      facebook,
+      youtube,
+      linkedin,
+      twitter,
       role: 'vendor',
       status: 'pending', // Will be approved by admin
       subscriptionStatus: 'inactive',

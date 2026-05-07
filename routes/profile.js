@@ -19,4 +19,7 @@ router.put('/update', upload.fields([
   { name: 'gstDocument', maxCount: 1 },
 ]), profileController.updateProfile);
 
+// Delete a specific portfolio image
+router.delete('/portfolio-image', profileController.deletePortfolioImage);
+
 module.exports = router;

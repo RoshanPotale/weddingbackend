@@ -60,7 +60,7 @@ const getProfileFields = (role, body, files) => {
       break;
 
     case 'vendor':
-      const { businessName, ownerName, whatsapp, address, experience, teamSize, description, pricingRange, perPlateCharge, aadhaarId, panId, gstId } = body;
+      const { businessName, ownerName, whatsapp, address, experience, teamSize, description, pricingRange, perPlateCharge, aadhaarId, panId, gstId, category, subCategory } = body;
       if (businessName) commonFields.businessName = businessName;
       if (ownerName) commonFields.ownerName = ownerName;
       if (whatsapp) commonFields.whatsapp = whatsapp;
@@ -73,6 +73,13 @@ const getProfileFields = (role, body, files) => {
       if (aadhaarId) commonFields.aadhaarId = aadhaarId;
       if (panId) commonFields.panId = panId;
       if (gstId) commonFields.gstId = gstId;
+      if (category) commonFields.category = category;
+      if (subCategory) commonFields.subCategory = subCategory;
+      if (body.instagram !== undefined) commonFields.instagram = body.instagram;
+      if (body.facebook !== undefined) commonFields.facebook = body.facebook;
+      if (body.youtube !== undefined) commonFields.youtube = body.youtube;
+      if (body.linkedin !== undefined) commonFields.linkedin = body.linkedin;
+      if (body.twitter !== undefined) commonFields.twitter = body.twitter;
       break;
 
     case 'user':
@@ -124,7 +131,7 @@ exports.updateProfile = async (req, res) => {
       // Handle portfolio images for vendors
       if (req.files?.portfolioImages && req.files.portfolioImages.length > 0) {
         console.log('🖼️ Uploading portfolio images...');
-        const portfolioUrls = [];
+        const portfolioUrls = user.portfolioImages || []; // Keep existing images
         for (const file of req.files.portfolioImages) {
           const result = await uploadToCloudinary(file.buffer, `vendors/portfolio/${req.user.id}`);
           portfolioUrls.push(result.secure_url);
@@ -201,6 +208,44 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+exports.deletePortfolioImage = async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    if (!imageUrl) {
+      return res.status(400).json({ message: 'Image URL is required' });
+    }
+
+    if (req.user.role !== 'vendor') {
+      return res.status(403).json({ message: 'Only vendors can manage portfolio images' });
+    }
+
+    const Vendor = getModelByRole('vendor');
+    const vendor = await Vendor.findById(req.user.id);
+
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    // Remove the image URL from the portfolioImages array
+    const originalCount = vendor.portfolioImages.length;
+    vendor.portfolioImages = vendor.portfolioImages.filter(url => url !== imageUrl);
+
+    if (vendor.portfolioImages.length === originalCount) {
+      return res.status(404).json({ message: 'Image not found in portfolio' });
+    }
+
+    await vendor.save();
+
+    res.json({ 
+      message: 'Portfolio image removed successfully',
+      portfolioImages: vendor.portfolioImages 
+    });
+  } catch (error) {
+    console.error('Error deleting portfolio image:', error);
+    res.status(500).json({ message: 'Error deleting portfolio image', error: error.message });
+  }
+};
+
 // Get current user's profile
 exports.getProfile = async (req, res) => {
   try {
@@ -222,7 +267,14 @@ exports.getProfile = async (req, res) => {
 
     console.log(`📋 Fetching profile for ${role} with ID: ${req.user.id}`);
 
-    const user = await Model.findById(req.user.id).select('-password');
+    let query = Model.findById(req.user.id).select('-password');
+    
+    // Populate vendor category and subcategory
+    if (role === 'vendor') {
+      query = query.populate('category').populate('subCategory');
+    }
+
+    const user = await query;
 
     if (!user) {
       return res.status(404).json({
