@@ -103,10 +103,17 @@ exports.vendorRegister = async (req, res) => {
   const { 
     businessName, ownerName, email, password, phone, whatsapp, 
     address, city, state, zipCode, category, subCategory, 
-    experience, teamSize, description, pricingRange,
+    experience, teamSize, description, pricingRange, perPlateCharge,
+    aadhaarDocumentId, panDocumentId, gstDocumentId,
     instagram, facebook, youtube, linkedin, twitter 
   } = req.body;
+  
   try {
+    // Validate required fields
+    if (!businessName || !ownerName || !email || !password || !phone || !address || !city || !state || !zipCode || !category || !experience || !teamSize || !description || !pricingRange) {
+      return res.status(400).json({ message: 'Please fill in all required fields' });
+    }
+
     // Check if vendor already exists
     const existingVendor = await Vendor.findOne({ email });
     if (existingVendor) {
@@ -125,6 +132,51 @@ exports.vendorRegister = async (req, res) => {
       categoryId = categoryDoc._id;
     }
     
+    // Handle document uploads
+    const documentData = {};
+    
+    // Upload Aadhaar Document
+    if (req.files?.aadhaarDocument && aadhaarDocumentId) {
+      try {
+        const result = await uploadToCloudinary(req.files.aadhaarDocument[0].buffer, 'wedding/vendors/documents/aadhaar');
+        documentData.aadhaarDocument = {
+          documentId: aadhaarDocumentId,
+          documentUrl: result.secure_url,
+        };
+      } catch (err) {
+        console.error('Aadhaar upload error:', err);
+        return res.status(400).json({ message: 'Failed to upload Aadhaar document' });
+      }
+    }
+
+    // Upload PAN Document
+    if (req.files?.panDocument && panDocumentId) {
+      try {
+        const result = await uploadToCloudinary(req.files.panDocument[0].buffer, 'wedding/vendors/documents/pan');
+        documentData.panDocument = {
+          documentId: panDocumentId,
+          documentUrl: result.secure_url,
+        };
+      } catch (err) {
+        console.error('PAN upload error:', err);
+        return res.status(400).json({ message: 'Failed to upload PAN document' });
+      }
+    }
+
+    // Upload GST Document
+    if (req.files?.gstDocument && gstDocumentId) {
+      try {
+        const result = await uploadToCloudinary(req.files.gstDocument[0].buffer, 'wedding/vendors/documents/gst');
+        documentData.gstDocument = {
+          documentId: gstDocumentId,
+          documentUrl: result.secure_url,
+        };
+      } catch (err) {
+        console.error('GST upload error:', err);
+        return res.status(400).json({ message: 'Failed to upload GST document' });
+      }
+    }
+    
     const hashedPassword = await bcrypt.hash(password, 10);
     const vendor = new Vendor({
       businessName,
@@ -138,22 +190,25 @@ exports.vendorRegister = async (req, res) => {
       state,
       zipCode,
       category: categoryId,
-      subCategory,
-      experience,
-      teamSize,
+      subCategory: subCategory || null,
+      experience: parseInt(experience),
+      teamSize: parseInt(teamSize),
       description,
       pricingRange,
+      ...(perPlateCharge && { perPlateCharge: parseFloat(perPlateCharge) }),
       instagram,
       facebook,
       youtube,
       linkedin,
       twitter,
+      ...documentData,
       role: 'vendor',
       status: 'pending', // Will be approved by admin
       subscriptionStatus: 'inactive',
     });
     
     await vendor.save();
+    console.log('Vendor registered successfully:', vendor._id);
     const token = generateToken(vendor);
     res.status(201).json({ 
       token,
@@ -162,7 +217,8 @@ exports.vendorRegister = async (req, res) => {
       note: 'Your vendor profile is under admin review. You will be able to login once approved.'
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Vendor registration error:', error);
+    res.status(500).json({ message: error.message || 'Failed to register vendor. Please try again.' });
   }
 };
 

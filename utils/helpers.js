@@ -11,6 +11,25 @@ const matchVendorsToRequirement = async (requirement) => {
   return vendors;
 };
 
+// Auto-update vendor subscription status if expired
+const updateExpiredSubscriptions = async (vendor) => {
+  if (!vendor) return vendor;
+  
+  const now = new Date();
+  
+  // Check if subscription has expired
+  if (vendor.subscriptionStatus === 'active' && vendor.subscriptionEndDate && now >= vendor.subscriptionEndDate) {
+    vendor.subscriptionStatus = 'expired';
+    try {
+      await vendor.save();
+    } catch (error) {
+      console.error('Error updating vendor subscription status:', error);
+    }
+  }
+  
+  return vendor;
+};
+
 const checkVendorSubscription = async (vendor) => {
   if (!vendor) return false;
   const now = new Date();
@@ -74,5 +93,6 @@ const trackVendorLead = async (
 module.exports = {
   matchVendorsToRequirement,
   checkVendorSubscription,
+  updateExpiredSubscriptions,
   trackVendorLead,
 };

@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Employee = require('../models/Employee');
 const Category = require('../models/Category');
 const SubCategory = require('../models/SubCategory');
+const { updateExpiredSubscriptions } = require('../utils/helpers');
 
 exports.createManager = async (req, res) => {
   const { name, email, phone, password } = req.body;
@@ -97,10 +98,13 @@ exports.getManagers = async (req, res) => {
 exports.getVendors = async (req, res) => {
   try {
     console.log('📋 Fetching all vendors for admin...');
-    const vendors = await Vendor.find()
+    let vendors = await Vendor.find()
       .populate('category')
-      .populate('subCategory')
-      .lean();
+      .populate('subCategory');
+    
+    // Check and update expired subscriptions
+    vendors = await Promise.all(vendors.map(vendor => updateExpiredSubscriptions(vendor)));
+    
     res.json(vendors);
   } catch (error) {
     console.error('❌ Error in getVendors:', error);
