@@ -16,6 +16,7 @@ router.get('/requirements', userController.getUserRequirements);
 router.get('/leads', userController.getUserLeads);
 router.get('/requirements/:requirementId/quotations', userController.getRequirementQuotations);
 router.put('/lead/:leadId/close', userController.closeUserLead);
+router.delete('/lead/:leadId', userController.deleteUserLead);
 router.put('/lead/:leadId/approve', userController.approveQuotation);
 router.get('/quotation/:leadId/download', userController.downloadQuotation);
 router.get('/:userId/requirements', userController.getUserRequirements);

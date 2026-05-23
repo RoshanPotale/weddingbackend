@@ -267,6 +267,19 @@ exports.viewRequirement = async (req, res) => {
       },
     });
 
+    // Update the requirement's viewedBy to include the leadId
+    await Requirement.findByIdAndUpdate(
+      requirement._id,
+      {
+        $set: {
+          'viewedBy.$[elem].leadId': lead._id,
+        },
+      },
+      {
+        arrayFilters: [{ 'elem.vendorId': req.user.id }],
+      }
+    );
+
     await trackVendorLead(
       req.user.id,
       requirement.customerName,

@@ -457,3 +457,59 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.deleteUserLead = async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    // Find the requirement first to get the lead info
+    const lead = await Lead.findById(leadId).populate('requirementId');
+    if (!lead) {
+      return res.status(404).json({ message: 'Lead not found' });
+    }
+
+    // Check if this requirement belongs to the user
+    if (lead.requirementId && lead.requirementId.userId) {
+      if (lead.requirementId.userId.toString() !== req.user.id) {
+        return res.status(403).json({ message: 'Not authorized to delete this lead' });
+      }
+    } else {
+      return res.status(400).json({ message: 'Requirement not found for this lead' });
+    }
+
+    // Delete from User.leads
+    await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        $pull: {
+          leads: { $or: [{ leadId: leadId }, { _id: leadId }] }
+        }
+      }
+    );
+
+    // Delete the Lead record
+    await Lead.findByIdAndDelete(leadId);
+
+    // Remove from Requirement.viewedBy
+    if (lead.requirementId) {
+      await Requirement.findByIdAndUpdate(
+        lead.requirementId._id,
+        {
+          $pull: {
+            viewedBy: { leadId: leadId }
+          }
+        }
+      );
+
+      // Decrement views if this was the last vendor for this requirement
+      const requirement = await Requirement.findById(lead.requirementId._id);
+      if (requirement && requirement.viewedBy.length === 0) {
+        requirement.views = Math.max(0, (requirement.views || 1) - 1);
+        await requirement.save();
+      }
+    }
+
+    res.json({ message: 'Lead deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
