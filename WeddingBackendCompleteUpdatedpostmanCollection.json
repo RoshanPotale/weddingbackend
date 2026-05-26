@@ -51,6 +51,11 @@
       "key": "requirementId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [

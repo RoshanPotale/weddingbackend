@@ -23,4 +23,18 @@ router.post('/contact-customer/:leadId', vendorController.contactCustomer);
 router.post('/leads/:leadId/quotation', upload.single('quotation'), vendorController.uploadQuotation);
 router.post('/track-lead', vendorController.trackLead);
 
+// ============ BOOKING MANAGEMENT ROUTES ============
+
+// Booking CRUD operations
+router.post('/bookings', vendorController.createBooking);
+router.get('/bookings', vendorController.getAllBookings);
+router.get('/bookings/stats/summary', vendorController.getBookingStats);
+router.get('/bookings/:bookingId', vendorController.getBookingById);
+router.put('/bookings/:bookingId', vendorController.updateBooking);
+router.delete('/bookings/:bookingId', vendorController.deleteBooking);
+
+// Payment management
+router.post('/bookings/:bookingId/payment', vendorController.addPayment);
+router.get('/bookings/:bookingId/payment-history', vendorController.getPaymentHistory);
+
 module.exports = router;

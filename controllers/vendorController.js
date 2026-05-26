@@ -533,3 +533,339 @@ exports.trackLead = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ============ BOOKING MANAGEMENT ENDPOINTS ============
+
+/**
+ * Create a new booking
+ * POST /vendor/bookings
+ */
+exports.createBooking = async (req, res) => {
+  try {
+    const { bookingDate, customerName, contactNumber, bookingFrom, bookingAmount, eventDate, eventLocation, notes } = req.body;
+
+    // Validate required fields
+    if (!bookingDate || !customerName || !contactNumber || !bookingFrom) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: bookingDate, customerName, contactNumber, bookingFrom' 
+      });
+    }
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    // Create new booking object
+    const newBooking = {
+      bookingDate: new Date(bookingDate),
+      customerName,
+      contactNumber,
+      bookingFrom,
+      bookingAmount: bookingAmount || null,
+      paidAmount: 0,
+      remainingAmount: bookingAmount ? bookingAmount : null,
+      paymentStatus: 'pending',
+      paymentHistory: [],
+      bookingStatus: 'upcoming',
+      eventDate: eventDate ? new Date(eventDate) : null,
+      eventLocation: eventLocation || null,
+      notes: notes || null,
+    };
+
+    vendor.bookings.push(newBooking);
+    await vendor.save();
+
+    res.status(201).json({
+      message: 'Booking created successfully',
+      booking: vendor.bookings[vendor.bookings.length - 1],
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Get all bookings for a vendor
+ * GET /vendor/bookings
+ */
+exports.getAllBookings = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.user.id).select('bookings');
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    // Sort bookings by date (latest first)
+    const sortedBookings = vendor.bookings.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate));
+
+    res.json({
+      totalBookings: sortedBookings.length,
+      bookings: sortedBookings,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Get a specific booking
+ * GET /vendor/bookings/:bookingId
+ */
+exports.getBookingById = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const vendor = await Vendor.findById(req.user.id);
+    
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const booking = vendor.bookings.id(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Update booking details
+ * PUT /vendor/bookings/:bookingId
+ */
+exports.updateBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { customerName, contactNumber, bookingAmount, eventDate, eventLocation, notes, bookingStatus } = req.body;
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const booking = vendor.bookings.id(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Update fields
+    if (customerName !== undefined) booking.customerName = customerName;
+    if (contactNumber !== undefined) booking.contactNumber = contactNumber;
+    if (eventDate !== undefined) booking.eventDate = eventDate ? new Date(eventDate) : null;
+    if (eventLocation !== undefined) booking.eventLocation = eventLocation;
+    if (notes !== undefined) booking.notes = notes;
+    if (bookingStatus !== undefined) booking.bookingStatus = bookingStatus;
+
+    // If booking amount is updated, recalculate remaining amount
+    if (bookingAmount !== undefined) {
+      booking.bookingAmount = bookingAmount;
+      if (bookingAmount && booking.paidAmount) {
+        booking.remainingAmount = bookingAmount - booking.paidAmount;
+      } else if (bookingAmount) {
+        booking.remainingAmount = bookingAmount;
+      }
+    }
+
+    booking.updatedAt = new Date();
+    await vendor.save();
+
+    res.json({
+      message: 'Booking updated successfully',
+      booking,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Add payment to a booking
+ * POST /vendor/bookings/:bookingId/payment
+ */
+exports.addPayment = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { amountPaid, paymentMethod = 'cash', transactionId, notes } = req.body;
+
+    // Validate required fields
+    if (!amountPaid) {
+      return res.status(400).json({ message: 'Amount paid is required' });
+    }
+
+    if (amountPaid <= 0) {
+      return res.status(400).json({ message: 'Amount paid must be greater than 0' });
+    }
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const booking = vendor.bookings.id(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Validate against booking amount if set
+    if (booking.bookingAmount) {
+      const totalAfterPayment = booking.paidAmount + amountPaid;
+      if (totalAfterPayment > booking.bookingAmount) {
+        return res.status(400).json({
+          message: `Payment exceeds booking amount. Remaining: ₹${booking.remainingAmount}`,
+        });
+      }
+    }
+
+    // Add payment to history
+    const payment = {
+      paymentDate: new Date(),
+      amountPaid,
+      paymentMethod,
+      transactionId: transactionId || null,
+      notes: notes || null,
+    };
+
+    booking.paymentHistory.push(payment);
+
+    // Update paid amount
+    booking.paidAmount += amountPaid;
+
+    // Calculate remaining amount
+    if (booking.bookingAmount) {
+      booking.remainingAmount = booking.bookingAmount - booking.paidAmount;
+    }
+
+    // Update payment status
+    if (booking.bookingAmount) {
+      if (booking.remainingAmount === 0) {
+        booking.paymentStatus = 'completed';
+      } else if (booking.paidAmount > 0) {
+        booking.paymentStatus = 'partial';
+      } else {
+        booking.paymentStatus = 'pending';
+      }
+    } else if (booking.paidAmount > 0) {
+      booking.paymentStatus = 'partial';
+    }
+
+    booking.updatedAt = new Date();
+    await vendor.save();
+
+    res.status(201).json({
+      message: 'Payment recorded successfully',
+      booking,
+      paymentDetails: {
+        amountPaid,
+        totalPaid: booking.paidAmount,
+        totalBookingAmount: booking.bookingAmount,
+        remainingAmount: booking.remainingAmount,
+        paymentStatus: booking.paymentStatus,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Get payment history for a booking
+ * GET /vendor/bookings/:bookingId/payment-history
+ */
+exports.getPaymentHistory = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const vendor = await Vendor.findById(req.user.id);
+    
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const booking = vendor.bookings.id(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    res.json({
+      booking: {
+        _id: booking._id,
+        customerName: booking.customerName,
+        bookingAmount: booking.bookingAmount,
+        paidAmount: booking.paidAmount,
+        remainingAmount: booking.remainingAmount,
+        paymentStatus: booking.paymentStatus,
+      },
+      paymentHistory: booking.paymentHistory,
+      summary: {
+        totalPayments: booking.paymentHistory.length,
+        totalAmountPaid: booking.paidAmount,
+        totalAmountPending: booking.remainingAmount,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Delete a booking
+ * DELETE /vendor/bookings/:bookingId
+ */
+exports.deleteBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const vendor = await Vendor.findById(req.user.id);
+    
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const booking = vendor.bookings.id(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    vendor.bookings.id(bookingId).deleteOne();
+    await vendor.save();
+
+    res.json({ message: 'Booking deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Get booking statistics
+ * GET /vendor/bookings/stats/summary
+ */
+exports.getBookingStats = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.user.id).select('bookings');
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const bookings = vendor.bookings;
+    
+    const stats = {
+      totalBookings: bookings.length,
+      upcomingBookings: bookings.filter(b => b.bookingStatus === 'upcoming').length,
+      completedBookings: bookings.filter(b => b.bookingStatus === 'completed').length,
+      cancelledBookings: bookings.filter(b => b.bookingStatus === 'cancelled').length,
+      totalBookingAmount: bookings.reduce((sum, b) => sum + (b.bookingAmount || 0), 0),
+      totalPaidAmount: bookings.reduce((sum, b) => sum + b.paidAmount, 0),
+      totalPendingAmount: bookings.reduce((sum, b) => sum + (b.remainingAmount || 0), 0),
+      paymentBreakdown: {
+        completed: bookings.filter(b => b.paymentStatus === 'completed').length,
+        partial: bookings.filter(b => b.paymentStatus === 'partial').length,
+        pending: bookings.filter(b => b.paymentStatus === 'pending').length,
+      },
+    };
+
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -163,6 +163,85 @@ const vendorSchema = new mongoose.Schema({
   categorySpecificFields: {
     type: mongoose.Schema.Types.Mixed, // For dynamic fields like photographer services, makeup prices, etc.
   },
+  // Booking Details
+  bookings: [{
+    bookingDate: {
+      type: Date,
+      required: true,
+    },
+    customerName: {
+      type: String,
+      required: true,
+    },
+    contactNumber: {
+      type: String,
+      required: true,
+    },
+    bookingFrom: {
+      type: String,
+      required: true,
+    },
+    bookingAmount: {
+      type: Number,
+      default: null,
+    },
+    paidAmount: {
+      type: Number,
+      default: 0,
+    },
+    remainingAmount: {
+      type: Number,
+      default: null,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'partial', 'completed'],
+      default: 'pending',
+    },
+    paymentHistory: [{
+      paymentDate: {
+        type: Date,
+        default: Date.now,
+      },
+      amountPaid: {
+        type: Number,
+        required: true,
+      },
+      paymentMethod: {
+        type: String,
+        enum: ['cash', 'card', 'upi', 'bank_transfer', 'cheque'],
+        default: 'cash',
+      },
+      transactionId: {
+        type: String,
+      },
+      notes: {
+        type: String,
+      },
+    }],
+    bookingStatus: {
+      type: String,
+      enum: ['upcoming', 'completed', 'cancelled'],
+      default: 'upcoming',
+    },
+    eventDate: {
+      type: Date,
+    },
+    eventLocation: {
+      type: String,
+    },
+    notes: {
+      type: String,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
   role: {
     type: String,
     default: 'vendor',
