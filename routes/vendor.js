@@ -8,6 +8,7 @@ const upload = require('../config/multer');
 // Public routes - list all vendors (no auth required)
 router.get('/list', vendorController.getAllVendors);
 router.get('/list/:id', vendorController.getVendorById);
+router.get('/:vendorId/availability', vendorController.getVendorAvailability);
 
 // Protected routes - vendor specific operations
 router.use(authMiddleware);

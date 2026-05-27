@@ -53,6 +53,37 @@ exports.getVendorById = async (req, res) => {
   }
 };
 
+// Public endpoint - get vendor booking availability
+exports.getVendorAvailability = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.vendorId).select('bookings');
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+    
+    // Filter bookings to show only relevant details (don't expose sensitive info)
+    const availability = {
+      vendorId: vendor._id,
+      bookings: vendor.bookings.map(booking => ({
+        _id: booking._id,
+        bookingDate: booking.bookingDate,
+        eventDate: booking.eventDate,
+        customerName: booking.customerName,
+        contactNumber: booking.contactNumber,
+        bookingFrom: booking.bookingFrom,
+        eventLocation: booking.eventLocation,
+        bookingAmount: booking.bookingAmount,
+        bookingStatus: booking.bookingStatus,
+        paymentStatus: booking.paymentStatus
+      }))
+    };
+    
+    res.json(availability);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Protected vendor endpoints
 exports.getLeads = async (req, res) => {
   try {
