@@ -38,4 +38,12 @@ router.delete('/bookings/:bookingId', vendorController.deleteBooking);
 router.post('/bookings/:bookingId/payment', vendorController.addPayment);
 router.get('/bookings/:bookingId/payment-history', vendorController.getPaymentHistory);
 
+// ============ PACKAGE MANAGEMENT ROUTES ============
+router.get('/packagesDetails', vendorController.getpackagesDetails);
+router.put('/packagesDetails/:type', vendorController.updatePackage);
+router.post('/packagesDetails/:type/items', vendorController.addPackageItem);
+router.put('/packagesDetails/:type/items/:itemId', vendorController.updatePackageItem);
+router.delete('/packagesDetails/:type/items/:itemId', vendorController.deletePackageItem);
+
+
 module.exports = router;

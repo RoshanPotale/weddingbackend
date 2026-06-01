@@ -900,3 +900,206 @@ exports.getBookingStats = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ============ PACKAGE MANAGEMENT ENDPOINTS ============
+
+const PACKAGE_TYPES = ['classic', 'signature', 'royal'];
+
+const defaultPackagesDetails = () => ({
+  classic: { price: null, items: [] },
+  signature: { price: null, items: [] },
+  royal: { price: null, items: [] },
+});
+
+const ensurePackagesDetails = (vendor) => {
+  if (!vendor.packagesDetails) {
+    vendor.packagesDetails = defaultPackagesDetails();
+    return vendor.packagesDetails;
+  }
+
+  PACKAGE_TYPES.forEach((type) => {
+    if (!vendor.packagesDetails[type]) {
+      vendor.packagesDetails[type] = { price: null, items: [] };
+    } else {
+      if (vendor.packagesDetails[type].price === undefined) {
+        vendor.packagesDetails[type].price = null;
+      }
+      if (!Array.isArray(vendor.packagesDetails[type].items)) {
+        vendor.packagesDetails[type].items = [];
+      }
+    }
+  });
+
+  return vendor.packagesDetails;
+};
+
+/**
+ * Get all packagesDetails for a vendor
+ * GET /vendor/packagesDetails
+ */
+exports.getpackagesDetails = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.user.id).select('packagesDetails');
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const packagesDetails = ensurePackagesDetails(vendor);
+    if (vendor.isModified('packagesDetails')) {
+      await vendor.save();
+    }
+
+    res.json({ packagesDetails });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Update a package's price (classic / signature / royal)
+ * PUT /vendor/packagesDetails/:type
+ */
+exports.updatePackage = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { price } = req.body;
+
+    if (!PACKAGE_TYPES.includes(type)) {
+      return res.status(400).json({ message: `Invalid package type. Must be one of: ${PACKAGE_TYPES.join(', ')}` });
+    }
+
+    if (price === undefined || price === null || Number.isNaN(Number(price)) || Number(price) < 0) {
+      return res.status(400).json({ message: 'A valid price (0 or more) is required' });
+    }
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    ensurePackagesDetails(vendor);
+    vendor.packagesDetails[type].price = Number(price);
+
+    await vendor.save();
+
+    res.json({
+      message: `${type} package updated successfully`,
+      package: vendor.packagesDetails[type],
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Add an item to a package
+ * POST /vendor/packagesDetails/:type/items
+ */
+exports.addPackageItem = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { name, description } = req.body;
+
+    if (!PACKAGE_TYPES.includes(type)) {
+      return res.status(400).json({ message: `Invalid package type. Must be one of: ${PACKAGE_TYPES.join(', ')}` });
+    }
+
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ message: 'Item name is required' });
+    }
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    ensurePackagesDetails(vendor);
+    const newItem = { name: String(name).trim(), description: description ? String(description).trim() : '' };
+    vendor.packagesDetails[type].items.push(newItem);
+    await vendor.save();
+
+    const addedItem = vendor.packagesDetails[type].items[vendor.packagesDetails[type].items.length - 1];
+
+    res.status(201).json({
+      message: 'Item added successfully',
+      item: addedItem,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Update an item within a package
+ * PUT /vendor/packagesDetails/:type/items/:itemId
+ */
+exports.updatePackageItem = async (req, res) => {
+  try {
+    const { type, itemId } = req.params;
+    const { name, description } = req.body;
+
+    if (!PACKAGE_TYPES.includes(type)) {
+      return res.status(400).json({ message: `Invalid package type. Must be one of: ${PACKAGE_TYPES.join(', ')}` });
+    }
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    ensurePackagesDetails(vendor);
+    const item = vendor.packagesDetails[type].items.id(itemId);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    if (name !== undefined) {
+      if (!String(name).trim()) {
+        return res.status(400).json({ message: 'Item name is required' });
+      }
+      item.name = String(name).trim();
+    }
+    if (description !== undefined) item.description = String(description).trim();
+
+    await vendor.save();
+
+    res.json({
+      message: 'Item updated successfully',
+      item,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Delete an item from a package
+ * DELETE /vendor/packagesDetails/:type/items/:itemId
+ */
+exports.deletePackageItem = async (req, res) => {
+  try {
+    const { type, itemId } = req.params;
+
+    if (!PACKAGE_TYPES.includes(type)) {
+      return res.status(400).json({ message: `Invalid package type. Must be one of: ${PACKAGE_TYPES.join(', ')}` });
+    }
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    ensurePackagesDetails(vendor);
+    const item = vendor.packagesDetails[type].items.id(itemId);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    vendor.packagesDetails[type].items.id(itemId).deleteOne();
+    await vendor.save();
+
+    res.json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

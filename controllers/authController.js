@@ -128,7 +128,7 @@ exports.vendorRegister = async (req, res) => {
     address, city, state, zipCode, category, subCategory, 
     experience, teamSize, description, pricingRange, perPlateCharge,
     aadhaarDocumentId, panDocumentId, gstDocumentId,
-    instagram, facebook, youtube, linkedin, twitter 
+    instagram, facebook, youtube, linkedin, twitter, packages
   } = req.body;
   
   try {
