@@ -60,7 +60,7 @@ const getProfileFields = (role, body, files) => {
       break;
 
     case 'vendor':
-      const { businessName, ownerName, whatsapp, address, experience, teamSize, description, pricingRange, perPlateCharge, aadhaarId, panId, gstId, category, subCategory } = body;
+      const { businessName, ownerName, whatsapp, address, experience, teamSize, description, pricingRange, perPlateCharge, perPlateChargeVeg, perPlateChargeNonVeg, maximumCapacity, aadhaarId, panId, gstId, category, subCategory } = body;
       if (businessName) commonFields.businessName = businessName;
       if (ownerName) commonFields.ownerName = ownerName;
       if (whatsapp) commonFields.whatsapp = whatsapp;
@@ -68,8 +68,20 @@ const getProfileFields = (role, body, files) => {
       if (experience !== undefined) commonFields.experience = experience;
       if (teamSize !== undefined) commonFields.teamSize = teamSize;
       if (description) commonFields.description = description;
-      if (pricingRange) commonFields.pricingRange = pricingRange;
-      if (perPlateCharge !== undefined) commonFields.perPlateCharge = perPlateCharge;
+      if (pricingRange !== undefined) commonFields.pricingRange = pricingRange;
+      if (maximumCapacity !== undefined) commonFields.maximumCapacity = maximumCapacity;
+      
+      // Handle perPlateCharge - use dot notation to update individual nested fields
+      if (perPlateChargeVeg !== undefined && perPlateChargeVeg !== '') {
+        commonFields['perPlateCharge.veg'] = Number(perPlateChargeVeg);
+      }
+      if (perPlateChargeNonVeg !== undefined && perPlateChargeNonVeg !== '') {
+        commonFields['perPlateCharge.nonVeg'] = Number(perPlateChargeNonVeg);
+      }
+      if (perPlateCharge !== undefined) {
+        commonFields.perPlateCharge = perPlateCharge;
+      }
+      
       if (aadhaarId) commonFields.aadhaarId = aadhaarId;
       if (panId) commonFields.panId = panId;
       if (gstId) commonFields.gstId = gstId;

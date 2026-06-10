@@ -491,7 +491,7 @@ exports.updateProfile = async (req, res) => {
     }
 
     const updateFields = {};
-    const { businessName, ownerName, phone, whatsapp, address, city, experience, teamSize, description, pricingRange, perPlateCharge, aadhaarId, panId, gstId, instagram, facebook, youtube, linkedin, twitter } = req.body;
+    const { businessName, ownerName, phone, whatsapp, address, city, experience, teamSize, description, pricingRange, perPlateCharge, perPlateChargeVeg, perPlateChargeNonVeg, maximumCapacity, aadhaarId, panId, gstId, instagram, facebook, youtube, linkedin, twitter } = req.body;
 
     if (businessName) updateFields.businessName = businessName;
     if (ownerName) updateFields.ownerName = ownerName;
@@ -502,20 +502,32 @@ exports.updateProfile = async (req, res) => {
     if (experience !== undefined) updateFields.experience = experience;
     if (teamSize !== undefined) updateFields.teamSize = teamSize;
     if (description) updateFields.description = description;
-    if (pricingRange) updateFields.pricingRange = pricingRange;
-    if (perPlateCharge !== undefined) updateFields.perPlateCharge = perPlateCharge;
+    if (pricingRange !== undefined) updateFields.pricingRange = pricingRange;
+    if (maximumCapacity !== undefined) updateFields.maximumCapacity = maximumCapacity;
+    
+    // Handle perPlateCharge - use dot notation to update individual nested fields
+    if (perPlateChargeVeg !== undefined && perPlateChargeVeg !== '') {
+      updateFields['perPlateCharge.veg'] = Number(perPlateChargeVeg);
+    }
+    if (perPlateChargeNonVeg !== undefined && perPlateChargeNonVeg !== '') {
+      updateFields['perPlateCharge.nonVeg'] = Number(perPlateChargeNonVeg);
+    }
+    if (perPlateCharge !== undefined) {
+      updateFields.perPlateCharge = perPlateCharge;
+    }
+    
     if (instagram !== undefined) updateFields.instagram = instagram;
     if (facebook !== undefined) updateFields.facebook = facebook;
     if (youtube !== undefined) updateFields.youtube = youtube;
     if (linkedin !== undefined) updateFields.linkedin = linkedin;
     if (twitter !== undefined) updateFields.twitter = twitter;
 
-    if (req.files.profileImage) {
+    if (req.files?.profileImage) {
       const result = await uploadToCloudinary(req.files.profileImage[0].buffer, `vendors/profile/${req.user.id}`);
       updateFields.profileImage = result.secure_url;
     }
 
-    if (req.files.portfolioImages) {
+    if (req.files?.portfolioImages) {
       const portfolioUrls = [];
       for (const file of req.files.portfolioImages) {
         const result = await uploadToCloudinary(file.buffer, `vendors/portfolio/${req.user.id}`);
@@ -524,7 +536,7 @@ exports.updateProfile = async (req, res) => {
       updateFields.portfolioImages = portfolioUrls;
     }
 
-    if (req.files.aadhaarDocument) {
+    if (req.files?.aadhaarDocument) {
       const result = await uploadToCloudinary(req.files.aadhaarDocument[0].buffer, 'vendors/documents');
       updateFields.aadhaarDocument = {
         documentId: aadhaarId || '',
@@ -532,7 +544,7 @@ exports.updateProfile = async (req, res) => {
       };
     }
 
-    if (req.files.panDocument) {
+    if (req.files?.panDocument) {
       const result = await uploadToCloudinary(req.files.panDocument[0].buffer, 'vendors/documents');
       updateFields.panDocument = {
         documentId: panId || '',
@@ -540,7 +552,7 @@ exports.updateProfile = async (req, res) => {
       };
     }
 
-    if (req.files.gstDocument) {
+    if (req.files?.gstDocument) {
       const result = await uploadToCloudinary(req.files.gstDocument[0].buffer, 'vendors/documents');
       updateFields.gstDocument = {
         documentId: gstId || '',
@@ -1099,6 +1111,179 @@ exports.deletePackageItem = async (req, res) => {
     await vendor.save();
 
     res.json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Add a review to a vendor (only users can review)
+ * POST /vendor/:vendorId/reviews
+ */
+exports.addReview = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { description, ratings } = req.body;
+    const userId = req.user.id;
+    const userName = req.user.name;
+
+    // Validate ratings
+    if (!ratings || ratings < 1 || ratings > 10) {
+      return res.status(400).json({ message: 'Ratings must be between 1 and 10' });
+    }
+
+    if (!description || !description.trim()) {
+      return res.status(400).json({ message: 'Review description is required' });
+    }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    // Check if user has already reviewed this vendor
+    const existingReview = vendor.reviews.find(
+      (review) => review.userId.toString() === userId
+    );
+
+    if (existingReview) {
+      return res.status(400).json({ message: 'You have already reviewed this vendor. You can only update your existing review.' });
+    }
+
+    // Add review
+    const newReview = {
+      userId,
+      userName,
+      description: description.trim(),
+      ratings: Number(ratings),
+      createdAt: new Date(),
+    };
+
+    vendor.reviews.push(newReview);
+    await vendor.save();
+
+    res.status(201).json({
+      message: 'Review added successfully',
+      review: vendor.reviews[vendor.reviews.length - 1],
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Get all reviews for a vendor
+ * GET /vendor/:vendorId/reviews
+ */
+exports.getReviews = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const vendor = await Vendor.findById(vendorId).select('reviews');
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const reviews = vendor.reviews.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    // Calculate average rating
+    const averageRating =
+      reviews.length > 0
+        ? (reviews.reduce((sum, review) => sum + review.ratings, 0) / reviews.length).toFixed(2)
+        : 0;
+
+    res.json({
+      totalReviews: reviews.length,
+      averageRating: parseFloat(averageRating),
+      reviews,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Update a review (only the user who wrote it can update)
+ * PUT /vendor/:vendorId/reviews/:reviewId
+ */
+exports.updateReview = async (req, res) => {
+  try {
+    const { vendorId, reviewId } = req.params;
+    const { description, ratings } = req.body;
+    const userId = req.user.id;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const review = vendor.reviews.id(reviewId);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    // Check if user is the owner of the review
+    if (review.userId.toString() !== userId) {
+      return res.status(403).json({ message: 'You can only update your own review' });
+    }
+
+    // Validate ratings if provided
+    if (ratings !== undefined) {
+      if (ratings < 1 || ratings > 10) {
+        return res.status(400).json({ message: 'Ratings must be between 1 and 10' });
+      }
+      review.ratings = Number(ratings);
+    }
+
+    // Update description if provided
+    if (description !== undefined) {
+      if (!description.trim()) {
+        return res.status(400).json({ message: 'Review description is required' });
+      }
+      review.description = description.trim();
+    }
+
+    await vendor.save();
+
+    res.json({
+      message: 'Review updated successfully',
+      review,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Delete a review (only the user who wrote it can delete)
+ * DELETE /vendor/:vendorId/reviews/:reviewId
+ */
+exports.deleteReview = async (req, res) => {
+  try {
+    const { vendorId, reviewId } = req.params;
+    const userId = req.user.id;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const review = vendor.reviews.id(reviewId);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    // Check if user is the owner of the review
+    if (review.userId.toString() !== userId) {
+      return res.status(403).json({ message: 'You can only delete your own review' });
+    }
+
+    vendor.reviews.id(reviewId).deleteOne();
+    await vendor.save();
+
+    res.json({ message: 'Review deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

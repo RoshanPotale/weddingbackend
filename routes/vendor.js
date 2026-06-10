@@ -9,6 +9,29 @@ const upload = require('../config/multer');
 router.get('/list', vendorController.getAllVendors);
 router.get('/list/:id', vendorController.getVendorById);
 router.get('/:vendorId/availability', vendorController.getVendorAvailability);
+// Public route - Get all reviews for a vendor
+router.get('/:vendorId/reviews', vendorController.getReviews);
+
+// ============ REVIEW ROUTES ============
+// User-only protected routes for reviews (requires auth + user role)
+// Create a custom middleware for these routes
+const userAuthMiddleware = (req, res, next) => {
+  // First verify auth token
+  authMiddleware(req, res, () => {
+    // Then verify user role
+    if (!req.user || req.user.role !== 'user') {
+      return res.status(403).json({ 
+        message: 'Only users can write reviews',
+        userRole: req.user?.role || 'not authenticated'
+      });
+    }
+    next();
+  });
+};
+
+router.post('/:vendorId/reviews', userAuthMiddleware, vendorController.addReview);
+router.put('/:vendorId/reviews/:reviewId', userAuthMiddleware, vendorController.updateReview);
+router.delete('/:vendorId/reviews/:reviewId', userAuthMiddleware, vendorController.deleteReview);
 
 // Protected routes - vendor specific operations
 router.use(authMiddleware);
@@ -44,6 +67,5 @@ router.put('/packagesDetails/:type', vendorController.updatePackage);
 router.post('/packagesDetails/:type/items', vendorController.addPackageItem);
 router.put('/packagesDetails/:type/items/:itemId', vendorController.updatePackageItem);
 router.delete('/packagesDetails/:type/items/:itemId', vendorController.deletePackageItem);
-
 
 module.exports = router;

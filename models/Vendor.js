@@ -45,11 +45,11 @@ const vendorSchema = new mongoose.Schema(
     },
     experience: {
       type: Number,
-      required: true,
+      required: false,
     },
     teamSize: {
       type: Number,
-      required: true,
+      required: false,
     },
     description: {
       type: String,
@@ -71,11 +71,19 @@ const vendorSchema = new mongoose.Schema(
       type: String,
     },
     pricingRange: {
-      type: String,
-      required: true,
+      type: Number,
+      required: false,
+    },
+    maximumCapacity: {
+      type: Number,
     },
     perPlateCharge: {
-      type: Number, // Optional field for per plate charge
+      veg: {
+        type: Number,
+      },
+      nonVeg: {
+        type: Number,
+      },
     },
     profileImage: {
       type: String, // Cloudinary URL
@@ -166,6 +174,34 @@ const vendorSchema = new mongoose.Schema(
             "customerContactedVendor",
           ],
           required: true,
+        },
+      },
+    ],
+    // Reviews - Only users can write reviews
+    reviews: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        userName: {
+          type: String,
+          required: true,
+        },
+        description: {
+          type: String,
+          required: true,
+        },
+        ratings: {
+          type: Number,
+          required: true,
+          min: 1,
+          max: 10,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
         },
       },
     ],
