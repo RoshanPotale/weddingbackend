@@ -60,8 +60,7 @@ exports.getVendorAvailability = async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ message: 'Vendor not found' });
     }
-    
-    // Filter bookings to show only relevant details (don't expose sensitive info)
+
     const availability = {
       vendorId: vendor._id,
       bookings: vendor.bookings.map(booking => ({
@@ -77,7 +76,7 @@ exports.getVendorAvailability = async (req, res) => {
         paymentStatus: booking.paymentStatus
       }))
     };
-    
+
     res.json(availability);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -102,13 +101,11 @@ exports.getLeads = async (req, res) => {
 
     const sanitizedLeads = leads.map((lead) => {
       const leadObj = lead.toObject();
-      // Check if this vendor's quotation is approved by the user in the Requirement model
       const viewedByEntry = leadObj.requirementId?.viewedBy?.find(
         (viewed) => viewed.vendorId.toString() === req.user.id.toString()
       );
       const isApproved = viewedByEntry?.approvedByUser || false;
-      
-      // Only show customer phone if user approved this vendor's quotation
+
       if (!isApproved) {
         delete leadObj.customerPhone;
       }
@@ -201,49 +198,27 @@ exports.viewRequirement = async (req, res) => {
     const requirement = await Requirement.findById(requirementId);
 
     if (!requirement) {
-      return res.status(404).json({
-        message: "Requirement not found",
-      });
+      return res.status(404).json({ message: 'Requirement not found' });
     }
-
-    /*
-    STEP 1:
-    Check if lead already exists
-    */
 
     let existingLead = await Lead.findOne({
       requirementId: requirement._id,
       vendorId: req.user.id,
     }).populate({
-      path: "requirementId",
-      populate: {
-        path: "serviceCategory userId",
-      },
+      path: 'requirementId',
+      populate: { path: 'serviceCategory userId' },
     });
-
-    /*
-    STEP 2:
-    If already exists → return existing lead
-    */
 
     if (existingLead) {
       const responseLead = existingLead.toObject();
-
-      if (responseLead.quotationStatus !== "approved") {
+      if (responseLead.quotationStatus !== 'approved') {
         delete responseLead.customerPhone;
-
         if (responseLead.requirementId?.userId) {
           delete responseLead.requirementId.userId.phone;
         }
       }
-
       return res.json(responseLead);
     }
-
-    /*
-    STEP 3:
-    First time only → increment views
-    */
 
     const vendorAlreadyViewed = requirement.viewedBy.some(
       (v) => v.vendorId?.toString() === req.user.id
@@ -251,32 +226,18 @@ exports.viewRequirement = async (req, res) => {
 
     if (!vendorAlreadyViewed) {
       requirement.views = (requirement.views || 0) + 1;
-
-      requirement.viewedBy.push({
-        vendorId: req.user.id,
-      });
-
+      requirement.viewedBy.push({ vendorId: req.user.id });
       await requirement.save();
     }
-
-    /*
-    STEP 4:
-    Create lead only once
-    */
 
     const lead = await Lead.create({
       requirementId: requirement._id,
       vendorId: req.user.id,
       customerName: requirement.customerName,
       customerPhone: requirement.customerPhone,
-      contactType: "vendorViewedCustomer",
-      quotationStatus: "pending",
+      contactType: 'vendorViewedCustomer',
+      quotationStatus: 'pending',
     });
-
-    /*
-    STEP 5:
-    Push to user leads only once
-    */
 
     await User.findByIdAndUpdate(requirement.userId, {
       $push: {
@@ -289,7 +250,7 @@ exports.viewRequirement = async (req, res) => {
           contactDate: lead.contactDate,
           contactType: lead.contactType,
           status: lead.status,
-          quoteStatus: "pending",
+          quoteStatus: 'pending',
           quotationUrl: null,
           quotationFileName: null,
           quotationUploadedAt: null,
@@ -298,40 +259,30 @@ exports.viewRequirement = async (req, res) => {
       },
     });
 
-    // Update the requirement's viewedBy to include the leadId
     await Requirement.findByIdAndUpdate(
       requirement._id,
-      {
-        $set: {
-          'viewedBy.$[elem].leadId': lead._id,
-        },
-      },
-      {
-        arrayFilters: [{ 'elem.vendorId': req.user.id }],
-      }
+      { $set: { 'viewedBy.$[elem].leadId': lead._id } },
+      { arrayFilters: [{ 'elem.vendorId': req.user.id }] }
     );
 
     await trackVendorLead(
       req.user.id,
       requirement.customerName,
       requirement.customerPhone,
-      "vendorViewedCustomer",
+      'vendorViewedCustomer',
       requirement._id,
       lead._id
     );
 
     const populatedLead = await Lead.findById(lead._id).populate({
-      path: "requirementId",
-      populate: {
-        path: "serviceCategory userId",
-      },
+      path: 'requirementId',
+      populate: { path: 'serviceCategory userId' },
     });
 
     const responseLead = populatedLead.toObject();
 
-    if (responseLead.quotationStatus !== "approved") {
+    if (responseLead.quotationStatus !== 'approved') {
       delete responseLead.customerPhone;
-
       if (responseLead.requirementId?.userId) {
         delete responseLead.requirementId.userId.phone;
       }
@@ -339,9 +290,7 @@ exports.viewRequirement = async (req, res) => {
 
     res.json(responseLead);
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -379,11 +328,7 @@ exports.contactCustomer = async (req, res) => {
 
     await User.findOneAndUpdate(
       { 'leads.leadId': lead._id },
-      {
-        $set: {
-          'leads.$.contactType': 'vendorContactedCustomer',
-        },
-      }
+      { $set: { 'leads.$.contactType': 'vendorContactedCustomer' } }
     );
 
     res.json({ message: 'Contact recorded' });
@@ -404,7 +349,6 @@ exports.uploadQuotation = async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to upload a quote for this lead.' });
     }
 
-    // Check if quotation already exists
     if (lead.quotationUrl) {
       return res.status(400).json({ message: 'A quotation has already been uploaded for this lead. You cannot upload another one.' });
     }
@@ -413,7 +357,6 @@ exports.uploadQuotation = async (req, res) => {
       return res.status(400).json({ message: 'Quotation file is required.' });
     }
 
-    // Check if the file is a PDF or an image
     const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedMimeTypes.includes(req.file.mimetype)) {
       return res.status(400).json({ message: 'Only PDF and Image (JPEG, JPG, PNG) quotation uploads are supported.' });
@@ -439,13 +382,9 @@ exports.uploadQuotation = async (req, res) => {
       }
     );
 
-    // Update the requirement's viewedBy array with quotation info
     if (lead.requirementId) {
       const updateResult = await Requirement.updateOne(
-        {
-          _id: lead.requirementId._id,
-          'viewedBy.vendorId': req.user.id,
-        },
+        { _id: lead.requirementId._id, 'viewedBy.vendorId': req.user.id },
         {
           $set: {
             'viewedBy.$[elem].quotationUrl': lead.quotationUrl,
@@ -454,26 +393,21 @@ exports.uploadQuotation = async (req, res) => {
             'viewedBy.$[elem].leadId': lead._id,
           },
         },
-        {
-          arrayFilters: [{ 'elem.vendorId': req.user.id }],
-        }
+        { arrayFilters: [{ 'elem.vendorId': req.user.id }] }
       );
 
       if (updateResult.matchedCount === 0) {
-        await Requirement.findByIdAndUpdate(
-          lead.requirementId._id,
-          {
-            $push: {
-              viewedBy: {
-                vendorId: req.user.id,
-                quotationUrl: lead.quotationUrl,
-                quotationFileName: lead.quotationFileName,
-                quotationUploadedAt: lead.quotationUploadedAt,
-                leadId: lead._id,
-              },
+        await Requirement.findByIdAndUpdate(lead.requirementId._id, {
+          $push: {
+            viewedBy: {
+              vendorId: req.user.id,
+              quotationUrl: lead.quotationUrl,
+              quotationFileName: lead.quotationFileName,
+              quotationUploadedAt: lead.quotationUploadedAt,
+              leadId: lead._id,
             },
-          }
-        );
+          },
+        });
       }
     }
 
@@ -483,6 +417,8 @@ exports.uploadQuotation = async (req, res) => {
   }
 };
 
+// ============ PROFILE UPDATE ============
+
 exports.updateProfile = async (req, res) => {
   try {
     const vendor = await Vendor.findById(req.user.id);
@@ -491,21 +427,38 @@ exports.updateProfile = async (req, res) => {
     }
 
     const updateFields = {};
-    const { businessName, ownerName, phone, whatsapp, address, city, experience, teamSize, description, pricingRange, perPlateCharge, perPlateChargeVeg, perPlateChargeNonVeg, maximumCapacity, aadhaarId, panId, gstId, instagram, facebook, youtube, linkedin, twitter } = req.body;
 
-    if (businessName) updateFields.businessName = businessName;
-    if (ownerName) updateFields.ownerName = ownerName;
-    if (phone) updateFields.phone = phone;
-    if (whatsapp) updateFields.whatsapp = whatsapp;
-    if (address) updateFields.address = address;
-    if (city) updateFields.city = city;
-    if (experience !== undefined) updateFields.experience = experience;
-    if (teamSize !== undefined) updateFields.teamSize = teamSize;
-    if (description) updateFields.description = description;
-    if (pricingRange !== undefined) updateFields.pricingRange = pricingRange;
-    if (maximumCapacity !== undefined) updateFields.maximumCapacity = maximumCapacity;
-    
-    // Handle perPlateCharge - use dot notation to update individual nested fields
+    // Basic info
+    const {
+      businessName, ownerName, phone, whatsapp, address, city, state,
+      experience, teamSize, description, pricingRange,
+      perPlateCharge, perPlateChargeVeg, perPlateChargeNonVeg, maximumCapacity,
+      weddingsCovered, responseTime, gpsLocationUrl, slug, isDestinationWeddingAvailable,
+      aadhaarId, panId, gstId,
+      instagram, facebook, youtube, linkedin, twitter,
+    } = req.body;
+
+    if (businessName)                   updateFields.businessName = businessName;
+    if (ownerName)                      updateFields.ownerName = ownerName;
+    if (phone)                          updateFields.phone = phone;
+    if (whatsapp)                       updateFields.whatsapp = whatsapp;
+    if (address)                        updateFields.address = address;
+    if (city)                           updateFields.city = city;
+    if (state)                          updateFields.state = state;
+    if (experience !== undefined)       updateFields.experience = experience;
+    if (teamSize !== undefined)         updateFields.teamSize = teamSize;
+    if (description)                    updateFields.description = description;
+    if (pricingRange !== undefined)     updateFields.pricingRange = pricingRange;
+    if (maximumCapacity !== undefined)  updateFields.maximumCapacity = maximumCapacity;
+    if (weddingsCovered !== undefined)  updateFields.weddingsCovered = weddingsCovered;
+    if (responseTime !== undefined)     updateFields.responseTime = responseTime;
+    if (gpsLocationUrl !== undefined)   updateFields.gpsLocationUrl = gpsLocationUrl;
+    if (slug !== undefined)             updateFields.slug = slug;
+    if (isDestinationWeddingAvailable !== undefined) {
+      updateFields.isDestinationWeddingAvailable = isDestinationWeddingAvailable === 'true' || isDestinationWeddingAvailable === true;
+    }
+
+    // Per plate charges
     if (perPlateChargeVeg !== undefined && perPlateChargeVeg !== '') {
       updateFields['perPlateCharge.veg'] = Number(perPlateChargeVeg);
     }
@@ -515,16 +468,23 @@ exports.updateProfile = async (req, res) => {
     if (perPlateCharge !== undefined) {
       updateFields.perPlateCharge = perPlateCharge;
     }
-    
-    if (instagram !== undefined) updateFields.instagram = instagram;
-    if (facebook !== undefined) updateFields.facebook = facebook;
-    if (youtube !== undefined) updateFields.youtube = youtube;
-    if (linkedin !== undefined) updateFields.linkedin = linkedin;
-    if (twitter !== undefined) updateFields.twitter = twitter;
 
+    // Social media
+    if (instagram !== undefined) updateFields.instagram = instagram;
+    if (facebook !== undefined)  updateFields.facebook = facebook;
+    if (youtube !== undefined)   updateFields.youtube = youtube;
+    if (linkedin !== undefined)  updateFields.linkedin = linkedin;
+    if (twitter !== undefined)   updateFields.twitter = twitter;
+
+    // Images
     if (req.files?.profileImage) {
       const result = await uploadToCloudinary(req.files.profileImage[0].buffer, `vendors/profile/${req.user.id}`);
       updateFields.profileImage = result.secure_url;
+    }
+
+    if (req.files?.introVideo) {
+      const result = await uploadToCloudinary(req.files.introVideo[0].buffer, `vendors/videos/${req.user.id}`);
+      updateFields.introVideo = result.secure_url;
     }
 
     if (req.files?.portfolioImages) {
@@ -536,28 +496,20 @@ exports.updateProfile = async (req, res) => {
       updateFields.portfolioImages = portfolioUrls;
     }
 
+    // Documents
     if (req.files?.aadhaarDocument) {
       const result = await uploadToCloudinary(req.files.aadhaarDocument[0].buffer, 'vendors/documents');
-      updateFields.aadhaarDocument = {
-        documentId: aadhaarId || '',
-        documentUrl: result.secure_url
-      };
+      updateFields.aadhaarDocument = { documentId: aadhaarId || '', documentUrl: result.secure_url };
     }
 
     if (req.files?.panDocument) {
       const result = await uploadToCloudinary(req.files.panDocument[0].buffer, 'vendors/documents');
-      updateFields.panDocument = {
-        documentId: panId || '',
-        documentUrl: result.secure_url
-      };
+      updateFields.panDocument = { documentId: panId || '', documentUrl: result.secure_url };
     }
 
     if (req.files?.gstDocument) {
       const result = await uploadToCloudinary(req.files.gstDocument[0].buffer, 'vendors/documents');
-      updateFields.gstDocument = {
-        documentId: gstId || '',
-        documentUrl: result.secure_url
-      };
+      updateFields.gstDocument = { documentId: gstId || '', documentUrl: result.secure_url };
     }
 
     const updatedVendor = await Vendor.findByIdAndUpdate(req.user.id, updateFields, { new: true }).populate('category');
@@ -577,6 +529,205 @@ exports.trackLead = async (req, res) => {
   }
 };
 
+// ============ SERVICES CRUD ============
+
+/**
+ * Get all services
+ * GET /vendor/services
+ */
+exports.getServices = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.user.id).select('services');
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    res.json({ services: vendor.services });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Add a service
+ * POST /vendor/services
+ */
+exports.addService = async (req, res) => {
+  try {
+    const { name, price, description } = req.body;
+
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ message: 'Service name is required' });
+    }
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    const newService = {
+      name: String(name).trim(),
+      price: price !== undefined ? Number(price) : undefined,
+      description: description ? String(description).trim() : '',
+    };
+
+    vendor.services.push(newService);
+    await vendor.save();
+
+    const addedService = vendor.services[vendor.services.length - 1];
+    res.status(201).json({ message: 'Service added successfully', service: addedService });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Update a service
+ * PUT /vendor/services/:serviceId
+ */
+exports.updateService = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+    const { name, price, description } = req.body;
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    const service = vendor.services.id(serviceId);
+    if (!service) return res.status(404).json({ message: 'Service not found' });
+
+    if (name !== undefined) {
+      if (!String(name).trim()) return res.status(400).json({ message: 'Service name is required' });
+      service.name = String(name).trim();
+    }
+    if (price !== undefined) service.price = Number(price);
+    if (description !== undefined) service.description = String(description).trim();
+
+    await vendor.save();
+    res.json({ message: 'Service updated successfully', service });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Delete a service
+ * DELETE /vendor/services/:serviceId
+ */
+exports.deleteService = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    const service = vendor.services.id(serviceId);
+    if (!service) return res.status(404).json({ message: 'Service not found' });
+
+    vendor.services.id(serviceId).deleteOne();
+    await vendor.save();
+
+    res.json({ message: 'Service deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ============ FAQS CRUD ============
+
+/**
+ * Get all FAQs
+ * GET /vendor/faqs
+ */
+exports.getFaqs = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.user.id).select('faqs');
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    res.json({ faqs: vendor.faqs });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Add a FAQ
+ * POST /vendor/faqs
+ */
+exports.addFaq = async (req, res) => {
+  try {
+    const { question, answer } = req.body;
+
+    if (!question || !String(question).trim()) {
+      return res.status(400).json({ message: 'Question is required' });
+    }
+    if (!answer || !String(answer).trim()) {
+      return res.status(400).json({ message: 'Answer is required' });
+    }
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    vendor.faqs.push({ question: String(question).trim(), answer: String(answer).trim() });
+    await vendor.save();
+
+    const addedFaq = vendor.faqs[vendor.faqs.length - 1];
+    res.status(201).json({ message: 'FAQ added successfully', faq: addedFaq });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Update a FAQ
+ * PUT /vendor/faqs/:faqId
+ */
+exports.updateFaq = async (req, res) => {
+  try {
+    const { faqId } = req.params;
+    const { question, answer } = req.body;
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    const faq = vendor.faqs.id(faqId);
+    if (!faq) return res.status(404).json({ message: 'FAQ not found' });
+
+    if (question !== undefined) {
+      if (!String(question).trim()) return res.status(400).json({ message: 'Question is required' });
+      faq.question = String(question).trim();
+    }
+    if (answer !== undefined) {
+      if (!String(answer).trim()) return res.status(400).json({ message: 'Answer is required' });
+      faq.answer = String(answer).trim();
+    }
+
+    await vendor.save();
+    res.json({ message: 'FAQ updated successfully', faq });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Delete a FAQ
+ * DELETE /vendor/faqs/:faqId
+ */
+exports.deleteFaq = async (req, res) => {
+  try {
+    const { faqId } = req.params;
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    const faq = vendor.faqs.id(faqId);
+    if (!faq) return res.status(404).json({ message: 'FAQ not found' });
+
+    vendor.faqs.id(faqId).deleteOne();
+    await vendor.save();
+
+    res.json({ message: 'FAQ deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ============ BOOKING MANAGEMENT ENDPOINTS ============
 
 /**
@@ -587,19 +738,15 @@ exports.createBooking = async (req, res) => {
   try {
     const { bookingDate, customerName, contactNumber, bookingFrom, bookingAmount, eventDate, eventLocation, notes } = req.body;
 
-    // Validate required fields
     if (!bookingDate || !customerName || !contactNumber || !bookingFrom) {
-      return res.status(400).json({ 
-        message: 'Missing required fields: bookingDate, customerName, contactNumber, bookingFrom' 
+      return res.status(400).json({
+        message: 'Missing required fields: bookingDate, customerName, contactNumber, bookingFrom'
       });
     }
 
     const vendor = await Vendor.findById(req.user.id);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
-    // Create new booking object
     const newBooking = {
       bookingDate: new Date(bookingDate),
       customerName,
@@ -635,17 +782,11 @@ exports.createBooking = async (req, res) => {
 exports.getAllBookings = async (req, res) => {
   try {
     const vendor = await Vendor.findById(req.user.id).select('bookings');
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
-    // Sort bookings by date (latest first)
     const sortedBookings = vendor.bookings.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate));
 
-    res.json({
-      totalBookings: sortedBookings.length,
-      bookings: sortedBookings,
-    });
+    res.json({ totalBookings: sortedBookings.length, bookings: sortedBookings });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -659,15 +800,10 @@ exports.getBookingById = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const vendor = await Vendor.findById(req.user.id);
-    
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const booking = vendor.bookings.id(bookingId);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     res.json(booking);
   } catch (error) {
@@ -685,16 +821,11 @@ exports.updateBooking = async (req, res) => {
     const { customerName, contactNumber, bookingAmount, eventDate, eventLocation, notes, bookingStatus } = req.body;
 
     const vendor = await Vendor.findById(req.user.id);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const booking = vendor.bookings.id(bookingId);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
-    // Update fields
     if (customerName !== undefined) booking.customerName = customerName;
     if (contactNumber !== undefined) booking.contactNumber = contactNumber;
     if (eventDate !== undefined) booking.eventDate = eventDate ? new Date(eventDate) : null;
@@ -702,7 +833,6 @@ exports.updateBooking = async (req, res) => {
     if (notes !== undefined) booking.notes = notes;
     if (bookingStatus !== undefined) booking.bookingStatus = bookingStatus;
 
-    // If booking amount is updated, recalculate remaining amount
     if (bookingAmount !== undefined) {
       booking.bookingAmount = bookingAmount;
       if (bookingAmount && booking.paidAmount) {
@@ -715,10 +845,7 @@ exports.updateBooking = async (req, res) => {
     booking.updatedAt = new Date();
     await vendor.save();
 
-    res.json({
-      message: 'Booking updated successfully',
-      booking,
-    });
+    res.json({ message: 'Booking updated successfully', booking });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -733,26 +860,15 @@ exports.addPayment = async (req, res) => {
     const { bookingId } = req.params;
     const { amountPaid, paymentMethod = 'cash', transactionId, notes } = req.body;
 
-    // Validate required fields
-    if (!amountPaid) {
-      return res.status(400).json({ message: 'Amount paid is required' });
-    }
-
-    if (amountPaid <= 0) {
-      return res.status(400).json({ message: 'Amount paid must be greater than 0' });
-    }
+    if (!amountPaid) return res.status(400).json({ message: 'Amount paid is required' });
+    if (amountPaid <= 0) return res.status(400).json({ message: 'Amount paid must be greater than 0' });
 
     const vendor = await Vendor.findById(req.user.id);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const booking = vendor.bookings.id(bookingId);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
-    // Validate against booking amount if set
     if (booking.bookingAmount) {
       const totalAfterPayment = booking.paidAmount + amountPaid;
       if (totalAfterPayment > booking.bookingAmount) {
@@ -762,7 +878,6 @@ exports.addPayment = async (req, res) => {
       }
     }
 
-    // Add payment to history
     const payment = {
       paymentDate: new Date(),
       amountPaid,
@@ -772,16 +887,12 @@ exports.addPayment = async (req, res) => {
     };
 
     booking.paymentHistory.push(payment);
-
-    // Update paid amount
     booking.paidAmount += amountPaid;
 
-    // Calculate remaining amount
     if (booking.bookingAmount) {
       booking.remainingAmount = booking.bookingAmount - booking.paidAmount;
     }
 
-    // Update payment status
     if (booking.bookingAmount) {
       if (booking.remainingAmount === 0) {
         booking.paymentStatus = 'completed';
@@ -821,15 +932,10 @@ exports.getPaymentHistory = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const vendor = await Vendor.findById(req.user.id);
-    
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const booking = vendor.bookings.id(bookingId);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     res.json({
       booking: {
@@ -860,15 +966,10 @@ exports.deleteBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const vendor = await Vendor.findById(req.user.id);
-    
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const booking = vendor.bookings.id(bookingId);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     vendor.bookings.id(bookingId).deleteOne();
     await vendor.save();
@@ -886,12 +987,10 @@ exports.deleteBooking = async (req, res) => {
 exports.getBookingStats = async (req, res) => {
   try {
     const vendor = await Vendor.findById(req.user.id).select('bookings');
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const bookings = vendor.bookings;
-    
+
     const stats = {
       totalBookings: bookings.length,
       upcomingBookings: bookings.filter(b => b.bookingStatus === 'upcoming').length,
@@ -952,9 +1051,7 @@ const ensurePackagesDetails = (vendor) => {
 exports.getpackagesDetails = async (req, res) => {
   try {
     const vendor = await Vendor.findById(req.user.id).select('packagesDetails');
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const packagesDetails = ensurePackagesDetails(vendor);
     if (vendor.isModified('packagesDetails')) {
@@ -968,7 +1065,7 @@ exports.getpackagesDetails = async (req, res) => {
 };
 
 /**
- * Update a package's price (classic / signature / royal)
+ * Update a package's price
  * PUT /vendor/packagesDetails/:type
  */
 exports.updatePackage = async (req, res) => {
@@ -985,19 +1082,13 @@ exports.updatePackage = async (req, res) => {
     }
 
     const vendor = await Vendor.findById(req.user.id);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     ensurePackagesDetails(vendor);
     vendor.packagesDetails[type].price = Number(price);
-
     await vendor.save();
 
-    res.json({
-      message: `${type} package updated successfully`,
-      package: vendor.packagesDetails[type],
-    });
+    res.json({ message: `${type} package updated successfully`, package: vendor.packagesDetails[type] });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1021,9 +1112,7 @@ exports.addPackageItem = async (req, res) => {
     }
 
     const vendor = await Vendor.findById(req.user.id);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     ensurePackagesDetails(vendor);
     const newItem = { name: String(name).trim(), description: description ? String(description).trim() : '' };
@@ -1031,11 +1120,7 @@ exports.addPackageItem = async (req, res) => {
     await vendor.save();
 
     const addedItem = vendor.packagesDetails[type].items[vendor.packagesDetails[type].items.length - 1];
-
-    res.status(201).json({
-      message: 'Item added successfully',
-      item: addedItem,
-    });
+    res.status(201).json({ message: 'Item added successfully', item: addedItem });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1055,30 +1140,20 @@ exports.updatePackageItem = async (req, res) => {
     }
 
     const vendor = await Vendor.findById(req.user.id);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     ensurePackagesDetails(vendor);
     const item = vendor.packagesDetails[type].items.id(itemId);
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
+    if (!item) return res.status(404).json({ message: 'Item not found' });
 
     if (name !== undefined) {
-      if (!String(name).trim()) {
-        return res.status(400).json({ message: 'Item name is required' });
-      }
+      if (!String(name).trim()) return res.status(400).json({ message: 'Item name is required' });
       item.name = String(name).trim();
     }
     if (description !== undefined) item.description = String(description).trim();
 
     await vendor.save();
-
-    res.json({
-      message: 'Item updated successfully',
-      item,
-    });
+    res.json({ message: 'Item updated successfully', item });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1097,15 +1172,11 @@ exports.deletePackageItem = async (req, res) => {
     }
 
     const vendor = await Vendor.findById(req.user.id);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     ensurePackagesDetails(vendor);
     const item = vendor.packagesDetails[type].items.id(itemId);
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
+    if (!item) return res.status(404).json({ message: 'Item not found' });
 
     vendor.packagesDetails[type].items.id(itemId).deleteOne();
     await vendor.save();
@@ -1115,6 +1186,8 @@ exports.deletePackageItem = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ============ REVIEW ENDPOINTS ============
 
 /**
  * Add a review to a vendor (only users can review)
@@ -1127,7 +1200,6 @@ exports.addReview = async (req, res) => {
     const userId = req.user.id;
     const userName = req.user.name;
 
-    // Validate ratings
     if (!ratings || ratings < 1 || ratings > 10) {
       return res.status(400).json({ message: 'Ratings must be between 1 and 10' });
     }
@@ -1137,11 +1209,8 @@ exports.addReview = async (req, res) => {
     }
 
     const vendor = await Vendor.findById(vendorId);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
-    // Check if user has already reviewed this vendor
     const existingReview = vendor.reviews.find(
       (review) => review.userId.toString() === userId
     );
@@ -1150,7 +1219,6 @@ exports.addReview = async (req, res) => {
       return res.status(400).json({ message: 'You have already reviewed this vendor. You can only update your existing review.' });
     }
 
-    // Add review
     const newReview = {
       userId,
       userName,
@@ -1180,15 +1248,10 @@ exports.getReviews = async (req, res) => {
     const { vendorId } = req.params;
 
     const vendor = await Vendor.findById(vendorId).select('reviews');
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
-    const reviews = vendor.reviews.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
+    const reviews = vendor.reviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // Calculate average rating
     const averageRating =
       reviews.length > 0
         ? (reviews.reduce((sum, review) => sum + review.ratings, 0) / reviews.length).toFixed(2)
@@ -1205,7 +1268,7 @@ exports.getReviews = async (req, res) => {
 };
 
 /**
- * Update a review (only the user who wrote it can update)
+ * Update a review
  * PUT /vendor/:vendorId/reviews/:reviewId
  */
 exports.updateReview = async (req, res) => {
@@ -1215,21 +1278,15 @@ exports.updateReview = async (req, res) => {
     const userId = req.user.id;
 
     const vendor = await Vendor.findById(vendorId);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const review = vendor.reviews.id(reviewId);
-    if (!review) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
+    if (!review) return res.status(404).json({ message: 'Review not found' });
 
-    // Check if user is the owner of the review
     if (review.userId.toString() !== userId) {
       return res.status(403).json({ message: 'You can only update your own review' });
     }
 
-    // Validate ratings if provided
     if (ratings !== undefined) {
       if (ratings < 1 || ratings > 10) {
         return res.status(400).json({ message: 'Ratings must be between 1 and 10' });
@@ -1237,27 +1294,20 @@ exports.updateReview = async (req, res) => {
       review.ratings = Number(ratings);
     }
 
-    // Update description if provided
     if (description !== undefined) {
-      if (!description.trim()) {
-        return res.status(400).json({ message: 'Review description is required' });
-      }
+      if (!description.trim()) return res.status(400).json({ message: 'Review description is required' });
       review.description = description.trim();
     }
 
     await vendor.save();
-
-    res.json({
-      message: 'Review updated successfully',
-      review,
-    });
+    res.json({ message: 'Review updated successfully', review });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 /**
- * Delete a review (only the user who wrote it can delete)
+ * Delete a review
  * DELETE /vendor/:vendorId/reviews/:reviewId
  */
 exports.deleteReview = async (req, res) => {
@@ -1266,16 +1316,11 @@ exports.deleteReview = async (req, res) => {
     const userId = req.user.id;
 
     const vendor = await Vendor.findById(vendorId);
-    if (!vendor) {
-      return res.status(404).json({ message: 'Vendor not found' });
-    }
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const review = vendor.reviews.id(reviewId);
-    if (!review) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
+    if (!review) return res.status(404).json({ message: 'Review not found' });
 
-    // Check if user is the owner of the review
     if (review.userId.toString() !== userId) {
       return res.status(403).json({ message: 'You can only delete your own review' });
     }

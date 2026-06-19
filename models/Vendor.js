@@ -34,6 +34,10 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    state: {
+      type: String,
+      required: true,
+    },
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
@@ -88,11 +92,59 @@ const vendorSchema = new mongoose.Schema(
     profileImage: {
       type: String, // Cloudinary URL
     },
+    introVideo: {
+      type: String, // Cloudinary URL
+    },
     portfolioImages: [
       {
         type: String, // Cloudinary URLs
       },
     ],
+
+    weddingsCovered: {
+      type: Number,
+    },
+    responseTime: {
+      type: String,
+    },
+    services: [
+          {
+            name: {
+              type: String,
+            },
+            price: {
+              type: Number,
+              required: false,
+            },
+            description: {
+              type: String,
+              default: "",
+            },
+          },
+        ],
+
+    faqs: [
+      {
+        question: String,
+        answer: String,
+      },
+    ],
+    // Documents - Store document IDs and URLs
+
+    gpsLocationUrl: {
+      type: String, // Google Maps URL
+    },
+
+    slug: {
+      type: String,
+      unique: true,
+    },
+
+    isDestinationWeddingAvailable: {
+      type: Boolean,
+      default: false,
+    },
+
     // Documents with ID and URL
     aadhaarDocument: {
       documentId: String, // Aadhaar ID number
@@ -354,6 +406,7 @@ const vendorSchema = new mongoose.Schema(
         ],
       },
     },
+    
     role: {
       type: String,
       default: "vendor",
