@@ -26,7 +26,11 @@ const uploadToCloudinary = (buffer, folder) => {
 // Public vendor listing endpoints
 exports.getAllVendors = async (req, res) => {
   try {
-    const vendors = await Vendor.find({ status: 'approved' })
+    const filter = { status: 'approved' };
+    if (req.query.city && req.query.city.trim()) {
+      filter.city = req.query.city.trim();
+    }
+    const vendors = await Vendor.find(filter)
       .populate('category')
       .populate('subCategory')
       .select('-password')
