@@ -1,1032 +1,116 @@
 {
-  "info": {
-    "name": "Wedding Backend API - Complete with Registration",
-    "description": "Complete API collection for Wedding Backend with all routes, functionalities and registration processes",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_postman_id": "wedding-backend-complete-v2",
-    "version": "2.0.0"
-  },
+  "info": {"name":"Wedding Backend API - Complete","description":"Complete API collection with sample data for every mounted backend endpoint.","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json","version":"3.0.0"},
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:5000",
-      "type": "string"
-    },
-    {
-      "key": "adminToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "managerToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "employeeToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "vendorToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "userToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "vendorId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "leadId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "requirementId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "bookingId",
-      "value": "",
-      "type": "string"
-    }
+    {"key":"baseUrl","value":"http://localhost:5000"},{"key":"adminToken","value":""},{"key":"managerToken","value":""},{"key":"employeeToken","value":""},{"key":"vendorToken","value":""},{"key":"userToken","value":""},{"key":"vendorId","value":""},{"key":"leadId","value":""},{"key":"requirementId","value":""},{"key":"bookingId","value":""},{"key":"categoryId","value":""},{"key":"subCategoryId","value":""},{"key":"serviceId","value":""},{"key":"faqId","value":""},{"key":"reviewId","value":""},{"key":"userId","value":""}
   ],
   "item": [
-    {
-      "name": "📝 REGISTRATION - New User Signup",
-      "item": [
-        {
-          "name": "1️⃣ Admin Registration (First Setup)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@wedding.com\",\n  \"password\": \"admin123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/admin-register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "admin-register"
-              ]
-            },
-            "description": "Register the first admin (one-time setup). Save the token to {{adminToken}} variable for future admin operations"
-          },
-          "response": []
-        },
-        {
-          "name": "2️⃣ User Registration (Public - Global)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Rahul Singh\",\n  \"email\": \"rahul.user@wedding.com\",\n  \"password\": \"UserPass123\",\n  \"phone\": \"9876543210\",\n  \"city\": \"Mumbai\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/user-register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "user-register"
-              ]
-            },
-            "description": "Public user registration - Anyone can register as a customer. No approval needed. Save the token to {{userToken}} variable"
-          },
-          "response": []
-        },
-        {
-          "name": "3️⃣ Vendor Registration (Website - Pending Approval)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"businessName\": \"Royal Photography Studio\",\n  \"ownerName\": \"Anil Verma\",\n  \"email\": \"royal.photo@wedding.com\",\n  \"password\": \"VendorPass123\",\n  \"phone\": \"8765432100\",\n  \"whatsapp\": \"8765432100\",\n  \"address\": \"123 Wedding Street, Photography Lane\",\n  \"city\": \"Mumbai\",\n  \"category\": \"Photography\",\n  \"experience\": \"10\",\n  \"teamSize\": \"5\",\n  \"description\": \"Professional wedding photography with drone coverage\",\n  \"pricingRange\": \"50000-200000\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/vendor-register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "vendor-register"
-              ]
-            },
-            "description": "Vendor direct registration from website. Status: PENDING (awaits admin approval). Vendor CANNOT login until admin approves. After approval, vendor can login using vendor-login endpoint."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "🔐 LOGIN - Existing Users",
-      "item": [
-        {
-          "name": "Admin Login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@wedding.com\",\n  \"password\": \"admin123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/admin-login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "admin-login"
-              ]
-            },
-            "description": "Admin login. Save the token to {{adminToken}} variable"
-          },
-          "response": []
-        },
-        {
-          "name": "Manager Login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"manager@wedding.com\",\n  \"password\": \"manager123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/manager-login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "manager-login"
-              ]
-            },
-            "description": "Manager login (created by admin). Save the token to {{managerToken}} variable"
-          },
-          "response": []
-        },
-        {
-          "name": "Employee Login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"employee@wedding.com\",\n  \"password\": \"employee123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/employee-login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "employee-login"
-              ]
-            },
-            "description": "Employee login (created by manager). Save the token to {{employeeToken}} variable"
-          },
-          "response": []
-        },
-        {
-          "name": "Vendor Login (Status: APPROVED ONLY)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"vendor@wedding.com\",\n  \"password\": \"vendor123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/vendor-login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "vendor-login"
-              ]
-            },
-            "description": "Vendor login - ONLY works if vendor status is APPROVED by admin. Pending or rejected vendors cannot login. Save the token to {{vendorToken}} variable"
-          },
-          "response": []
-        },
-        {
-          "name": "User Login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"rahul.user@wedding.com\",\n  \"password\": \"UserPass123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/user-login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "user-login"
-              ]
-            },
-            "description": "User login. Save the token to {{userToken}} variable"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "👨‍💼 ADMIN Routes",
-      "item": [
-        {
-          "name": "Create Manager (By Admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Rajesh Kumar\",\n  \"email\": \"rajesh.manager@wedding.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"SecurePass123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/admin/create-manager",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "create-manager"
-              ]
-            },
-            "description": "Admin creates a new manager account (Admin only)"
-          },
-          "response": []
-        },
-        {
-          "name": "Get All Managers",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/admin/managers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "managers"
-              ]
-            },
-            "description": "Fetch all managers in the system (Admin only)"
-          },
-          "response": []
-        },
-        {
-          "name": "Get All Vendors (Including Pending)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/admin/vendors",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "vendors"
-              ]
-            },
-            "description": "Fetch all vendors including pending registrations (Admin only)"
-          },
-          "response": []
-        },
-        {
-          "name": "✅ Approve Vendor (Activate Account)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/admin/vendor-approve/{{vendorId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "vendor-approve",
-                "{{vendorId}}"
-              ]
-            },
-            "description": "Admin approves a vendor account. After approval, vendor can login. Use vendorId from Get All Vendors response"
-          },
-          "response": []
-        },
-        {
-          "name": "❌ Reject Vendor (Deny Account)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/admin/vendor-reject/{{vendorId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "vendor-reject",
-                "{{vendorId}}"
-              ]
-            },
-            "description": "Admin rejects a vendor account. Rejected vendors cannot login. Use vendorId from Get All Vendors response"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "🏢 MANAGER Routes",
-      "item": [
-        {
-          "name": "Create Employee (By Manager)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Priya Sharma\",\n  \"email\": \"priya.employee@wedding.com\",\n  \"phone\": \"8765432109\",\n  \"password\": \"EmpPass123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/manager/create-employee",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "manager",
-                "create-employee"
-              ]
-            },
-            "description": "Manager creates a new employee account (Manager only)"
-          },
-          "response": []
-        },
-        {
-          "name": "Get All Employees",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/manager/employees",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "manager",
-                "employees"
-              ]
-            },
-            "description": "Fetch all employees under this manager (Manager only)"
-          },
-          "response": []
-        },
-        {
-          "name": "Get All Vendors (Created by Their Employees)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/manager/vendors",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "manager",
-                "vendors"
-              ]
-            },
-            "description": "Fetch all vendors created by employees under this manager (Manager only)"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "👷 EMPLOYEE Routes",
-      "item": [
-        {
-          "name": "Create Vendor (By Employee - Direct Creation)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{employeeToken}}"
-              }
-            ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "businessName",
-                  "value": "Royal Photography Studio",
-                  "type": "text"
-                },
-                {
-                  "key": "ownerName",
-                  "value": "Anil Verma",
-                  "type": "text"
-                },
-                {
-                  "key": "phone",
-                  "value": "8765432100",
-                  "type": "text"
-                },
-                {
-                  "key": "email",
-                  "value": "royal.photo@wedding.com",
-                  "type": "text"
-                },
-                {
-                  "key": "password",
-                  "value": "VendorPass123",
-                  "type": "text"
-                },
-                {
-                  "key": "whatsapp",
-                  "value": "8765432100",
-                  "type": "text"
-                },
-                {
-                  "key": "address",
-                  "value": "123 Wedding Street, Photography Lane",
-                  "type": "text"
-                },
-                {
-                  "key": "city",
-                  "value": "Mumbai",
-                  "type": "text"
-                },
-                {
-                  "key": "category",
-                  "value": "Photography",
-                  "type": "text"
-                },
-                {
-                  "key": "experience",
-                  "value": "10",
-                  "type": "text"
-                },
-                {
-                  "key": "teamSize",
-                  "value": "5",
-                  "type": "text"
-                },
-                {
-                  "key": "description",
-                  "value": "Professional wedding photography with drone coverage",
-                  "type": "text"
-                },
-                {
-                  "key": "pricingRange",
-                  "value": "50000-200000",
-                  "type": "text"
-                },
-                {
-                  "key": "categorySpecificFields",
-                  "value": "{}",
-                  "type": "text"
-                },
-                {
-                  "key": "profileImage",
-                  "type": "file",
-                  "src": []
-                },
-                {
-                  "key": "portfolioImages",
-                  "type": "file",
-                  "src": []
-                },
-                {
-                  "key": "aadhaarDocument",
-                  "type": "file",
-                  "src": []
-                },
-                {
-                  "key": "panDocument",
-                  "type": "file",
-                  "src": []
-                },
-                {
-                  "key": "gstDocument",
-                  "type": "file",
-                  "src": []
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{baseUrl}}/employee/create-vendor",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "employee",
-                "create-vendor"
-              ]
-            },
-            "description": "Employee creates vendor directly with file uploads. Upload: profileImage, portfolioImages (multiple), aadhaarDocument, panDocument, gstDocument. Vendor may still need admin approval depending on settings."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "🏪 VENDOR Routes",
-      "item": [
-        {
-          "name": "Get Leads (All Customer Leads)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{vendorToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/vendor/leads",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "vendor",
-                "leads"
-              ]
-            },
-            "description": "Fetch all customer leads for this vendor (Vendor only). Requires vendor to be APPROVED status and have active subscription"
-          },
-          "response": []
-        },
-        {
-          "name": "View Customer Details",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{vendorToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/vendor/view-customer/{{leadId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "vendor",
-                "view-customer",
-                "{{leadId}}"
-              ]
-            },
-            "description": "View customer phone details for a specific lead (Vendor only). Use leadId from Get Leads response"
-          },
-          "response": []
-        },
-        {
-          "name": "Contact Customer",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{vendorToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/vendor/contact-customer/{{leadId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "vendor",
-                "contact-customer",
-                "{{leadId}}"
-              ]
-            },
-            "description": "Record vendor contact with customer (Vendor only). Use leadId from Get Leads response"
-          },
-          "response": []
-        },
-        {
-          "name": "Update Vendor Subscription Status",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"subscriptionStatus\": \"active\",\n  \"subscriptionPlan\": \"premium\",\n  \"durationDays\": 30\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/admin/vendor-subscription/{{vendorId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "vendor-subscription", "{{vendorId}}"]
-            },
-            "description": "Admin can manually set vendor subscription status and optionally plan/duration. Allowed statuses: inactive, active, expired."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "� CATEGORY Routes",
-      "item": [
-        {
-          "name": "Get All Categories",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/category",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "category"
-              ]
-            },
-            "description": "Get all available service categories (public)."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Category By Id",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/category/{{categoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "category",
-                "{{categoryId}}"
-              ]
-            },
-            "description": "Get a single category by id (public)."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Category",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"categoryName\": \"Photography\",\n  \"description\": \"Wedding photography services\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/category",
-              "host": ["{{baseUrl}}"],
-              "path": ["category"]
-            },
-            "description": "Create a new category (Admin only)."
-          },
-          "response": []
-        },
-        {
-          "name": "Update Category",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"categoryName\": \"Updated Category\",\n  \"description\": \"Updated description\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/category/{{categoryId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["category", "{{categoryId}}"]
-            },
-            "description": "Update an existing category by id (Admin only)."
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Category",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/category/{{categoryId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["category", "{{categoryId}}"]
-            },
-            "description": "Delete an existing category by id (Admin only)."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "�👤 USER Routes",
-      "item": [
-        {
-          "name": "Post Requirement (Post Wedding Service Need)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{userToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"customerName\": \"Rahul Singh\",\n  \"customerPhone\": \"9876543210\",\n  \"serviceCategory\": \"Photography\",\n  \"city\": \"Mumbai\",\n  \"eventDate\": \"2025-06-15\",\n  \"budget\": 150000,\n  \"guestCount\": 300,\n  \"description\": \"Looking for professional wedding photography with drone coverage and same-day editing\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/user/post-requirement",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "post-requirement"
-              ]
-            },
-            "description": "Post a new wedding service requirement (User only). System will automatically match APPROVED vendors"
-          },
-          "response": []
-        },
-        {
-          "name": "View All Vendors (Filtered by Category & City)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{userToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/user/vendors?category=Photography&city=Mumbai",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "vendors"
-              ],
-              "query": [
-                {
-                  "key": "category",
-                  "value": "Photography"
-                },
-                {
-                  "key": "city",
-                  "value": "Mumbai"
-                }
-              ]
-            },
-            "description": "View all APPROVED vendors filtered by category and city (User only)"
-          },
-          "response": []
-        },
-        {
-          "name": "View Vendor Details",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{userToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/user/vendor/{{vendorId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "vendor",
-                "{{vendorId}}"
-              ]
-            },
-            "description": "View detailed information about a specific vendor (User only). Use vendorId from View All Vendors response"
-          },
-          "response": []
-        },
-        {
-          "name": "View User Requirements",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{userToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/user/requirements",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "requirements"
-              ]
-            },
-            "description": "View all requirements posted by the authenticated user."
-          },
-          "response": []
-        },
-        {
-          "name": "View Your Leads",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{userToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/user/leads",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "leads"
-              ]
-            },
-            "description": "View all leads stored for the authenticated user."
-          },
-          "response": []
-        },
-        {
-          "name": "Close User Lead",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{userToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/user/lead/{{leadId}}/close",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "lead",
-                "{{leadId}}",
-                "close"
-              ]
-            },
-            "description": "Mark a lead as closed for the authenticated user. Use leadId from the View Your Leads response"
-          },
-          "response": []
-        }
-      ]
-    }
+    {"name":"AUTH - Registration and Login","item":[
+      {"name":"Admin Register","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@wedding.com\",\n  \"password\": \"admin123\"\n}"},"url":"{{baseUrl}}/auth/admin-register"}},
+      {"name":"User Register","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"name\": \"Rahul Singh\",\n  \"email\": \"rahul.user@wedding.com\",\n  \"password\": \"UserPass123\",\n  \"phone\": \"9876543210\",\n  \"city\": \"Mumbai\"\n}"},"url":"{{baseUrl}}/auth/user-register"}},
+      {"name":"Vendor Register (Multipart)","request":{"method":"POST","header":[],"body":{"mode":"formdata","formdata":[{"key":"businessName","value":"Royal Photography Studio","type":"text"},{"key":"ownerName","value":"Anil Verma","type":"text"},{"key":"email","value":"royal.photo@wedding.com","type":"text"},{"key":"password","value":"VendorPass123","type":"text"},{"key":"phone","value":"8765432100","type":"text"},{"key":"whatsapp","value":"8765432100","type":"text"},{"key":"address","value":"123 Wedding Street","type":"text"},{"key":"city","value":"Mumbai","type":"text"},{"key":"state","value":"Maharashtra","type":"text"},{"key":"zipCode","value":"400001","type":"text"},{"key":"category","value":"Photography","type":"text"},{"key":"subCategory","value":"Wedding Photography","type":"text"},{"key":"experience","value":"10","type":"text"},{"key":"teamSize","value":"5","type":"text"},{"key":"description","value":"Professional wedding photography","type":"text"},{"key":"pricingRange","value":"50000-200000","type":"text"},{"key":"aadhaarDocumentId","value":"123456789012","type":"text"},{"key":"panDocumentId","value":"ABCDE1234F","type":"text"},{"key":"gstDocumentId","value":"27ABCDE1234F1Z5","type":"text"},{"key":"aadhaarDocument","type":"file","src":[]},{"key":"panDocument","type":"file","src":[]},{"key":"gstDocument","type":"file","src":[]}]},"url":"{{baseUrl}}/auth/vendor-register"}},
+      {"name":"Admin Login","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"admin@wedding.com\",\"password\":\"admin123\"}"},"url":"{{baseUrl}}/auth/admin-login"}},
+      {"name":"Manager Login","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"manager@wedding.com\",\"password\":\"manager123\"}"},"url":"{{baseUrl}}/auth/manager-login"}},
+      {"name":"Employee Login","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"employee@wedding.com\",\"password\":\"employee123\"}"},"url":"{{baseUrl}}/auth/employee-login"}},
+      {"name":"Vendor Login","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"vendor@wedding.com\",\"password\":\"vendor123\"}"},"url":"{{baseUrl}}/auth/vendor-login"}},
+      {"name":"User Login","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"rahul.user@wedding.com\",\"password\":\"UserPass123\"}"},"url":"{{baseUrl}}/auth/user-login"}}
+    ]},
+    {"name":"ADMIN - Dashboard, Users, Managers, Vendors","item":[
+      {"name":"Dashboard Stats","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/admin/stats"}},
+      {"name":"All Users","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/admin/users"}},
+      {"name":"All Employees","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/admin/employees"}},
+      {"name":"Create Manager","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{adminToken}}"}],"body":{"mode":"raw","raw":"{\"name\":\"Rajesh Kumar\",\"email\":\"rajesh.manager@wedding.com\",\"phone\":\"9876543210\",\"password\":\"SecurePass123\"}"},"url":"{{baseUrl}}/admin/create-manager"}},
+      {"name":"All Managers","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/admin/managers"}},
+      {"name":"All Vendors Including Pending","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/admin/vendors"}},
+      {"name":"Approve Vendor","request":{"method":"PUT","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/admin/vendor-approve/{{vendorId}}"}},
+      {"name":"Reject Vendor","request":{"method":"PUT","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/admin/vendor-reject/{{vendorId}}"}},
+      {"name":"Update Vendor Subscription","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{adminToken}}"}],"body":{"mode":"raw","raw":"{\"subscriptionStatus\":\"active\",\"subscriptionPlan\":\"premium\",\"durationDays\":30}"},"url":"{{baseUrl}}/admin/vendor-subscription/{{vendorId}}"}}
+    ]},
+    {"name":"MANAGER and EMPLOYEE","item":[
+      {"name":"Create Employee","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{managerToken}}"}],"body":{"mode":"raw","raw":"{\"name\":\"Priya Sharma\",\"email\":\"priya.employee@wedding.com\",\"phone\":\"8765432109\",\"password\":\"EmpPass123\"}"},"url":"{{baseUrl}}/manager/create-employee"}},
+      {"name":"Manager Employees","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{managerToken}}"}],"url":"{{baseUrl}}/manager/employees"}},
+      {"name":"Manager Vendors","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{managerToken}}"}],"url":"{{baseUrl}}/manager/vendors"}},
+      {"name":"Create Vendor By Employee","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{employeeToken}}"}],"body":{"mode":"formdata","formdata":[{"key":"businessName","value":"Royal Photography Studio","type":"text"},{"key":"ownerName","value":"Anil Verma","type":"text"},{"key":"phone","value":"8765432100","type":"text"},{"key":"email","value":"employee.vendor@wedding.com","type":"text"},{"key":"password","value":"VendorPass123","type":"text"},{"key":"address","value":"123 Wedding Street","type":"text"},{"key":"city","value":"Mumbai","type":"text"},{"key":"category","value":"Photography","type":"text"},{"key":"experience","value":"10","type":"text"},{"key":"teamSize","value":"5","type":"text"},{"key":"description","value":"Wedding photography","type":"text"},{"key":"pricingRange","value":"50000-200000","type":"text"},{"key":"profileImage","type":"file","src":[]},{"key":"portfolioImages","type":"file","src":[]},{"key":"aadhaarDocument","type":"file","src":[]},{"key":"panDocument","type":"file","src":[]},{"key":"gstDocument","type":"file","src":[]}]},"url":"{{baseUrl}}/employee/create-vendor"}}
+    ]},
+    {"name":"PUBLIC - Vendors and Categories","item":[
+      {"name":"List Approved Vendors","request":{"method":"GET","header":[],"url":"{{baseUrl}}/vendor/list?city=Mumbai"}},
+      {"name":"Public Vendor Details","request":{"method":"GET","header":[],"url":"{{baseUrl}}/vendor/list/{{vendorId}}"}},
+      {"name":"Vendor Availability","request":{"method":"GET","header":[],"url":"{{baseUrl}}/vendor/{{vendorId}}/availability"}},
+      {"name":"Vendor Reviews","request":{"method":"GET","header":[],"url":"{{baseUrl}}/vendor/{{vendorId}}/reviews"}},
+      {"name":"Get Categories","request":{"method":"GET","header":[],"url":"{{baseUrl}}/category"}},
+      {"name":"Get Category By ID","request":{"method":"GET","header":[],"url":"{{baseUrl}}/category/{{categoryId}}"}},
+      {"name":"Create Category","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{adminToken}}"}],"body":{"mode":"raw","raw":"{\"categoryName\":\"Photography\",\"description\":\"Wedding photography services\"}"},"url":"{{baseUrl}}/category"}},
+      {"name":"Update Category","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{adminToken}}"}],"body":{"mode":"raw","raw":"{\"categoryName\":\"Updated Photography\",\"description\":\"Updated services\"}"},"url":"{{baseUrl}}/category/{{categoryId}}"}},
+      {"name":"Delete Category","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/category/{{categoryId}}"}},
+      {"name":"Get Subcategories","request":{"method":"GET","header":[],"url":"{{baseUrl}}/subcategory"}},
+      {"name":"Subcategories By Category","request":{"method":"GET","header":[],"url":"{{baseUrl}}/subcategory/category/{{categoryId}}"}},
+      {"name":"Subcategory By ID","request":{"method":"GET","header":[],"url":"{{baseUrl}}/subcategory/{{subCategoryId}}"}},
+      {"name":"Create Subcategory","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{adminToken}}"}],"body":{"mode":"raw","raw":"{\"subCategoryName\":\"Wedding Photography\",\"description\":\"Ceremony photography\",\"categoryId\":\"{{categoryId}}\"}"},"url":"{{baseUrl}}/subcategory"}},
+      {"name":"Update Subcategory","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{adminToken}}"}],"body":{"mode":"raw","raw":"{\"subCategoryName\":\"Premium Wedding Photography\",\"description\":\"Updated description\"}"},"url":"{{baseUrl}}/subcategory/{{subCategoryId}}"}},
+      {"name":"Delete Subcategory","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":"{{baseUrl}}/subcategory/{{subCategoryId}}"}}
+    ]},
+    {"name":"USER - Requirements, Leads, Quotations","item":[
+      {"name":"Post Requirement","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{userToken}}"}],"body":{"mode":"raw","raw":"{\"customerName\":\"Rahul Singh\",\"customerPhone\":\"9876543210\",\"serviceCategory\":\"Photography\",\"city\":\"Mumbai\",\"eventDate\":\"2026-06-15\",\"budget\":150000,\"guestCount\":300,\"description\":\"Wedding photography with drone coverage\"}"},"url":"{{baseUrl}}/user/post-requirement"}},
+      {"name":"User Vendors","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/vendors?category={{categoryId}}&city=Mumbai"}},
+      {"name":"User Vendor Details","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/vendor/{{vendorId}}"}},
+      {"name":"Contact Vendor","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{userToken}}"}],"body":{"mode":"raw","raw":"{\"vendorId\":\"{{vendorId}}\",\"customerName\":\"Rahul Singh\",\"customerPhone\":\"9876543210\"}"},"url":"{{baseUrl}}/user/contact-vendor"}},
+      {"name":"User Requirements","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/requirements"}},
+      {"name":"User Requirements By ID","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/{{userId}}/requirements"}},
+      {"name":"User Leads","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/leads"}},
+      {"name":"Requirement Quotations","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/requirements/{{requirementId}}/quotations"}},
+      {"name":"Close Lead","request":{"method":"PUT","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/lead/{{leadId}}/close"}},
+      {"name":"Delete Lead","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/lead/{{leadId}}"}},
+      {"name":"Approve Quotation","request":{"method":"PUT","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/lead/{{leadId}}/approve"}},
+      {"name":"Download Quotation","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/user/quotation/{{leadId}}/download"}}
+    ]},
+    {"name":"VENDOR - Protected Operations","item":[
+      {"name":"Vendor Profile Update","request":{"method":"PUT","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"formdata","formdata":[{"key":"businessName","value":"Royal Photography Studio Updated","type":"text"},{"key":"ownerName","value":"Anil Verma","type":"text"},{"key":"phone","value":"8765432100","type":"text"},{"key":"city","value":"Mumbai","type":"text"},{"key":"description","value":"Professional wedding photography","type":"text"},{"key":"profileImage","type":"file","src":[]},{"key":"portfolioImages","type":"file","src":[]},{"key":"introVideo","type":"file","src":[]},{"key":"aadhaarDocument","type":"file","src":[]},{"key":"panDocument","type":"file","src":[]},{"key":"gstDocument","type":"file","src":[]}]},"url":"{{baseUrl}}/vendor/profile"}},
+      {"name":"Vendor Leads","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/leads"}},
+      {"name":"Vendor Requirements","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/requirements"}},
+      {"name":"View Requirement","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/requirements/{{requirementId}}"}},
+      {"name":"View Customer","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/view-customer/{{leadId}}"}},
+      {"name":"Contact Customer","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{}"},"url":"{{baseUrl}}/vendor/contact-customer/{{leadId}}"}},
+      {"name":"Upload Quotation","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"formdata","formdata":[{"key":"quotation","type":"file","src":[]}]},"url":"{{baseUrl}}/vendor/leads/{{leadId}}/quotation"}},
+      {"name":"Track Lead","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"vendorId\":\"{{vendorId}}\",\"customerName\":\"Rahul Singh\",\"customerPhone\":\"9876543210\",\"contactType\":\"vendorContactedCustomer\",\"requirementId\":\"{{requirementId}}\",\"leadId\":\"{{leadId}}\"}"},"url":"{{baseUrl}}/vendor/track-lead"}},
+      {"name":"Subscription Status","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/subscription"}},
+      {"name":"Activate Subscription","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"subscriptionPlan\":\"premium\",\"durationDays\":30}"},"url":"{{baseUrl}}/vendor/activate-subscription"}},
+      {"name":"Get Services","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/services"}},
+      {"name":"Add Service","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"name\":\"Candid Photography\",\"price\":45000,\"description\":\"Full-day coverage\"}"},"url":"{{baseUrl}}/vendor/services"}},
+      {"name":"Update Service","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"name\":\"Premium Candid Photography\",\"price\":55000,\"description\":\"Updated coverage\"}"},"url":"{{baseUrl}}/vendor/services/{{serviceId}}"}},
+      {"name":"Delete Service","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/services/{{serviceId}}"}},
+      {"name":"Get FAQs","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/faqs"}},
+      {"name":"Add FAQ","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"question\":\"Do you provide drone coverage?\",\"answer\":\"Yes, in premium packages.\"}"},"url":"{{baseUrl}}/vendor/faqs"}},
+      {"name":"Update FAQ","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"question\":\"Is drone coverage available?\",\"answer\":\"Yes, for suitable outdoor venues.\"}"},"url":"{{baseUrl}}/vendor/faqs/{{faqId}}"}},
+      {"name":"Delete FAQ","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/faqs/{{faqId}}"}}
+    ]},
+    {"name":"VENDOR - Bookings and Packages","item":[
+      {"name":"Create Booking","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"bookingDate\":\"2026-06-15\",\"customerName\":\"Rohit Kumar\",\"contactNumber\":\"9876543210\",\"bookingFrom\":\"direct_customer\",\"bookingAmount\":50000,\"eventDate\":\"2026-07-20\",\"eventLocation\":\"Delhi Convention Center\",\"notes\":\"Premium service\"}"},"url":"{{baseUrl}}/vendor/bookings"}},
+      {"name":"All Bookings","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/bookings"}},
+      {"name":"Booking Stats","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/bookings/stats/summary"}},
+      {"name":"Booking By ID","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/bookings/{{bookingId}}"}},
+      {"name":"Update Booking","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"customerName\":\"Rohit Kumar Updated\",\"bookingAmount\":55000,\"eventDate\":\"2026-07-25\",\"bookingStatus\":\"completed\"}"},"url":"{{baseUrl}}/vendor/bookings/{{bookingId}}"}},
+      {"name":"Add Payment","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"amountPaid\":15000,\"paymentMethod\":\"bank_transfer\",\"transactionId\":\"TXN123456\",\"notes\":\"Advance payment\"}"},"url":"{{baseUrl}}/vendor/bookings/{{bookingId}}/payment"}},
+      {"name":"Payment History","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/bookings/{{bookingId}}/payment-history"}},
+      {"name":"Delete Booking","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/bookings/{{bookingId}}"}},
+      {"name":"Get Packages","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/packagesDetails"}},
+      {"name":"Update Package","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"price\":25000,\"description\":\"Classic wedding package\"}"},"url":"{{baseUrl}}/vendor/packagesDetails/classic"}},
+      {"name":"Add Package Item","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"name\":\"Floral decoration\",\"description\":\"Stage flowers\"}"},"url":"{{baseUrl}}/vendor/packagesDetails/classic/items"}},
+      {"name":"Update Package Item","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"name\":\"Premium floral decoration\",\"description\":\"Updated stage flowers\"}"},"url":"{{baseUrl}}/vendor/packagesDetails/classic/items/{{serviceId}}"}},
+      {"name":"Delete Package Item","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/vendor/packagesDetails/classic/items/{{serviceId}}"}}
+    ]},
+    {"name":"PROFILE - Profile and Packages","item":[
+      {"name":"Get Current Profile","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/profile"}},
+      {"name":"Update Current Profile","request":{"method":"PUT","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"body":{"mode":"formdata","formdata":[{"key":"name","value":"Rahul Singh Updated","type":"text"},{"key":"phone","value":"9876543210","type":"text"},{"key":"city","value":"Mumbai","type":"text"},{"key":"profileImage","type":"file","src":[]}]},"url":"{{baseUrl}}/profile/update"}},
+      {"name":"Delete Portfolio Image","request":{"method":"DELETE","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"imageUrl\":\"https://res.cloudinary.com/demo/image/upload/sample.jpg\"}"},"url":"{{baseUrl}}/profile/portfolio-image"}},
+      {"name":"Get Profile Packages","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/profile/packages"}},
+      {"name":"Update Profile Package","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"price\":30000,\"description\":\"Updated package\"}"},"url":"{{baseUrl}}/profile/packages/classic"}},
+      {"name":"Add Profile Package Item","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"name\":\"Album\",\"description\":\"Premium printed album\"}"},"url":"{{baseUrl}}/profile/packages/classic/items"}},
+      {"name":"Update Profile Package Item","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"body":{"mode":"raw","raw":"{\"name\":\"Premium Album\",\"description\":\"Updated album\"}"},"url":"{{baseUrl}}/profile/packages/classic/items/{{serviceId}}"}},
+      {"name":"Delete Profile Package Item","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{vendorToken}}"}],"url":"{{baseUrl}}/profile/packages/classic/items/{{serviceId}}"}}
+    ]},
+    {"name":"REVIEWS - User Authenticated","item":[
+      {"name":"Add Review","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{userToken}}"}],"body":{"mode":"raw","raw":"{\"rating\":5,\"comment\":\"Excellent service\"}"},"url":"{{baseUrl}}/vendor/{{vendorId}}/reviews"}},
+      {"name":"Update Review","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{userToken}}"}],"body":{"mode":"raw","raw":"{\"rating\":4,\"comment\":\"Updated review\"}"},"url":"{{baseUrl}}/vendor/{{vendorId}}/reviews/{{reviewId}}"}},
+      {"name":"Delete Review","request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{userToken}}"}],"url":"{{baseUrl}}/vendor/{{vendorId}}/reviews/{{reviewId}}"}}
+    ]}
   ]
 }
