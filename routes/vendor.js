@@ -7,7 +7,9 @@ const upload = require('../config/multer');
 
 // ============ PUBLIC ROUTES ============
 router.get('/list', vendorController.getAllVendors);
+router.get('/featuredvendors', vendorController.getFeaturedVendors);
 router.get('/list/:id', vendorController.getVendorById);
+router.get('/:categoryId/top', vendorController.getCategoryTopVendors);
 router.get('/:vendorId/availability', vendorController.getVendorAvailability);
 router.get('/:vendorId/reviews', vendorController.getReviews);
 

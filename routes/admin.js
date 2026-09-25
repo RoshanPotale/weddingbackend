@@ -18,6 +18,7 @@ router.get('/managers', adminController.getManagers);
 
 // Vendor management
 router.get('/vendors', adminController.getVendors);
+router.patch('/vendors/:vendorId/featuredvendors', adminController.updateFeaturedVendorStatus);
 router.put('/vendor-approve/:vendorId', adminController.approveVendor);
 router.put('/vendor-reject/:vendorId', adminController.rejectVendor);
 router.put('/vendor-subscription/:vendorId', adminController.updateVendorSubscription);

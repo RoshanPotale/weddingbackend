@@ -193,6 +193,32 @@ const vendorSchema = new mongoose.Schema(
       enum: ["inactive", "active", "expired"],
       default: "inactive",
     },
+    // Vendor Visibility
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    featuredOrder: {
+      type: Number,
+      default: 9999,
+    },
+    // Vendor Ranking
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    reviewsCount: {
+      type: Number,
+      default: 0,
+    },
+    profileCompletionPercentage: {
+      type: Number,
+      default: 0,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
     // Leads
     leadsCount: {
       type: Number,

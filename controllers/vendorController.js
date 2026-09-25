@@ -4,7 +4,15 @@ const User = require('../models/User');
 const Requirement = require('../models/Requirement');
 const upload = require('../config/multer');
 const cloudinary = require('../config/cloudinary');
-const { checkVendorSubscription, trackVendorLead } = require('../utils/helpers');
+const {
+  checkVendorSubscription,
+  trackVendorLead,
+  calculateProfileCompletion,
+  calculateVendorScore,
+  isVendorPubliclyVisible,
+  sanitizePublicVendor,
+  recalculateReviewStats,
+} = require('../utils/helpers');
 
 const uploadToCloudinary = (buffer, folder) => {
   return new Promise((resolve, reject) => {
@@ -24,18 +32,101 @@ const uploadToCloudinary = (buffer, folder) => {
 };
 
 // Public vendor listing endpoints
-exports.getAllVendors = async (req, res) => {
+exports.getFeaturedVendors = async (req, res) => {
   try {
-    const filter = { status: 'approved' };
-    if (req.query.city && req.query.city.trim()) {
-      filter.city = req.query.city.trim();
+    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
+    const vendors = await Vendor.find({
+      status: 'approved',
+      subscriptionStatus: 'active',
+      isFeatured: true,
+    })
+      .populate('category')
+      .populate('subCategory')
+      .sort({ featuredOrder: 1, createdAt: -1 })
+      .limit(limit)
+      .select('-password -aadhaarDocument.documentId -panDocument.documentId -gstDocument.documentId')
+      .lean();
+
+    res.json(vendors.map((vendor) => sanitizePublicVendor(vendor)));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getCategoryTopVendors = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const { subCategoryId } = req.query;
+    const filter = {
+      category: categoryId,
+      status: 'approved',
+      subscriptionStatus: 'active',
+    };
+
+    if (subCategoryId) {
+      filter.subCategory = subCategoryId;
     }
+
     const vendors = await Vendor.find(filter)
       .populate('category')
       .populate('subCategory')
-      .select('-password')
+      .select('-password -aadhaarDocument.documentId -panDocument.documentId -gstDocument.documentId')
       .lean();
-    res.json(vendors);
+
+    const ranked = [...vendors]
+      .map((vendor) => ({
+        ...sanitizePublicVendor(vendor),
+        score: calculateVendorScore(vendor),
+      }))
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      })
+      .slice(0, 10)
+      .map((vendor, index) => ({
+        ...vendor,
+        rank: index + 1,
+        score: undefined,
+      }));
+
+    res.json(ranked);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getAllVendors = async (req, res) => {
+  try {
+    const filter = { status: 'approved', subscriptionStatus: 'active' };
+
+    if (req.query.category) filter.category = req.query.category;
+    if (req.query.subCategory) filter.subCategory = req.query.subCategory;
+    if (req.query.city && req.query.city.trim()) {
+      filter.city = req.query.city.trim();
+    }
+
+    let vendors = await Vendor.find(filter)
+      .populate('category')
+      .populate('subCategory')
+      .select('-password -aadhaarDocument.documentId -panDocument.documentId -gstDocument.documentId')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (req.query.excludeTop === 'true' && req.query.category) {
+      const topVendors = [...vendors]
+        .map((vendor) => ({ vendor, score: calculateVendorScore(vendor) }))
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return new Date(b.vendor.createdAt) - new Date(a.vendor.createdAt);
+        })
+        .slice(0, 10)
+        .map((item) => item.vendor._id.toString());
+
+      vendors = vendors.filter((vendor) => !topVendors.includes(vendor._id.toString()));
+    }
+
+    const sanitized = vendors.map((vendor) => sanitizePublicVendor(vendor));
+    res.json(sanitized);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -46,12 +137,18 @@ exports.getVendorById = async (req, res) => {
     const vendor = await Vendor.findById(req.params.id)
       .populate('category')
       .populate('subCategory')
-      .select('-password')
+      .select('-password -aadhaarDocument.documentId -panDocument.documentId -gstDocument.documentId')
       .lean();
+
     if (!vendor) {
       return res.status(404).json({ message: 'Vendor not found' });
     }
-    res.json(vendor);
+
+    if (!isVendorPubliclyVisible(vendor)) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    res.json(sanitizePublicVendor(vendor));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -516,7 +613,16 @@ exports.updateProfile = async (req, res) => {
       updateFields.gstDocument = { documentId: gstId || '', documentUrl: result.secure_url };
     }
 
-    const updatedVendor = await Vendor.findByIdAndUpdate(req.user.id, updateFields, { new: true }).populate('category');
+    const updatedVendorData = { ...vendor.toObject(), ...updateFields };
+    updatedVendorData.profileCompletionPercentage = calculateProfileCompletion(updatedVendorData);
+    updatedVendorData.isVerified = Boolean(updatedVendorData.isVerified || updatedVendorData.profileCompletionPercentage >= 70);
+
+    const updatedVendor = await Vendor.findByIdAndUpdate(req.user.id, {
+      ...updateFields,
+      profileCompletionPercentage: updatedVendorData.profileCompletionPercentage,
+      isVerified: updatedVendorData.isVerified,
+    }, { new: true }).populate('category');
+
     res.json({ message: 'Profile updated successfully', vendor: updatedVendor });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -1232,6 +1338,7 @@ exports.addReview = async (req, res) => {
     };
 
     vendor.reviews.push(newReview);
+    recalculateReviewStats(vendor);
     await vendor.save();
 
     res.status(201).json({
@@ -1303,6 +1410,7 @@ exports.updateReview = async (req, res) => {
       review.description = description.trim();
     }
 
+    recalculateReviewStats(vendor);
     await vendor.save();
     res.json({ message: 'Review updated successfully', review });
   } catch (error) {
@@ -1330,6 +1438,7 @@ exports.deleteReview = async (req, res) => {
     }
 
     vendor.reviews.id(reviewId).deleteOne();
+    recalculateReviewStats(vendor);
     await vendor.save();
 
     res.json({ message: 'Review deleted successfully' });

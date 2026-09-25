@@ -7,6 +7,44 @@ const Category = require('../models/Category');
 const SubCategory = require('../models/SubCategory');
 const { updateExpiredSubscriptions } = require('../utils/helpers');
 
+exports.updateFeaturedVendorStatus = async (req, res) => {
+  const { vendorId } = req.params;
+  const { isFeatured, featuredOrder } = req.body;
+
+  try {
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found.' });
+    }
+
+    const shouldFeature = isFeatured === undefined ? vendor.isFeatured : Boolean(isFeatured);
+    const isEligible = vendor.status === 'approved' && vendor.subscriptionStatus === 'active';
+
+    if (shouldFeature && !isEligible) {
+      return res.status(400).json({
+        message: 'Vendor must be approved and have an active subscription to be featured.',
+      });
+    }
+
+    vendor.isFeatured = shouldFeature;
+    if (shouldFeature) {
+      const parsedOrder = Number(featuredOrder);
+      vendor.featuredOrder = Number.isFinite(parsedOrder) ? parsedOrder : vendor.featuredOrder || 9999;
+    } else {
+      vendor.featuredOrder = 9999;
+    }
+
+    await vendor.save();
+
+    res.json({
+      message: vendor.isFeatured ? 'Vendor added to Featured successfully' : 'Vendor removed from Featured successfully',
+      vendor,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.createManager = async (req, res) => {
   const { name, email, phone, password } = req.body;
   try {
