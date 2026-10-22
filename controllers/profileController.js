@@ -95,7 +95,24 @@ const getProfileFields = (role, body, files) => {
       break;
 
     case 'user':
-      // Users have basic profile fields
+      {
+        const {
+          address,
+          state,
+          dateOfBirth,
+          maritalStatus,
+          gender,
+          occupation,
+        } = body;
+        if (address !== undefined) commonFields.address = address;
+        if (state !== undefined) commonFields.state = state;
+        if (dateOfBirth !== undefined) {
+          commonFields.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+        }
+        if (maritalStatus !== undefined) commonFields.maritalStatus = maritalStatus || null;
+        if (gender !== undefined) commonFields.gender = gender || null;
+        if (occupation !== undefined) commonFields.occupation = occupation;
+      }
       break;
   }
 
@@ -190,6 +207,15 @@ exports.updateProfile = async (req, res) => {
       updateFields,
       { new: true }
     ).select('-password'); // Exclude password from response
+    if (req.user.role === 'user') {
+      await updatedUser.populate({
+        path: 'whitelistVendors.vendorId',
+        populate: [
+          { path: 'category', select: 'categoryName' },
+          { path: 'subCategory', select: 'subCategoryName name' },
+        ],
+      });
+    }
 
     console.log('✅ Profile updated successfully:', {
       id: updatedUser._id,
@@ -284,6 +310,14 @@ exports.getProfile = async (req, res) => {
     // Populate vendor category and subcategory
     if (role === 'vendor') {
       query = query.populate('category').populate('subCategory');
+    } else if (role === 'user') {
+      query = query.populate({
+        path: 'whitelistVendors.vendorId',
+        populate: [
+          { path: 'category', select: 'categoryName' },
+          { path: 'subCategory', select: 'subCategoryName name' },
+        ],
+      });
     }
 
     const user = await query;

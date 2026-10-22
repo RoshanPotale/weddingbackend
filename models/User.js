@@ -15,6 +15,9 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    address: {
+      type: String,
+    },
     city: {
       type: String,
       required: true,
@@ -22,6 +25,20 @@ const userSchema = new mongoose.Schema(
     state: {
       type: String,
       required: true,
+    },
+    dateOfBirth: {
+      type: Date,
+    },
+    maritalStatus: {
+      type: String,
+      enum: ["single", "married", "divorced", "widowed"],
+    },
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
+    },
+    occupation: {
+      type: String,
     },
     password: {
       type: String,

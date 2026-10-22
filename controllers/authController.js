@@ -47,7 +47,9 @@ const login = async (Model, req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
     const token = generateToken(user);
-    res.json({ token, user });
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    res.json({ token, user: safeUser });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -87,8 +89,26 @@ exports.adminRegister = async (req, res) => {
 
 // User Registration (Public)
 exports.userRegister = async (req, res) => {
-  const { name, email, password, phone, city } = req.body;
+  const {
+    name,
+    email,
+    password,
+    phone,
+    address,
+    city,
+    state,
+    dateOfBirth,
+    maritalStatus,
+    gender,
+    occupation,
+  } = req.body;
   try {
+    if (!name || !email || !password || !phone || !city || !state) {
+      return res.status(400).json({
+        message: 'Name, email, password, phone, city, and state are required',
+      });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -101,18 +121,29 @@ exports.userRegister = async (req, res) => {
       email,
       password: hashedPassword,
       phone,
+      address,
       city,
+      state,
+      dateOfBirth: dateOfBirth || undefined,
+      maritalStatus: maritalStatus || undefined,
+      gender: gender || undefined,
+      occupation,
       role: 'user',
     });
     
     await user.save();
     const token = generateToken(user);
+    const safeUser = user.toObject();
+    delete safeUser.password;
     res.status(201).json({ 
       message: 'User registered successfully', 
       token, 
-      user 
+      user: safeUser,
     });
   } catch (error) {
+    if (error.name === 'ValidationError' || error.name === 'CastError') {
+      return res.status(400).json({ message: error.message });
+    }
     res.status(500).json({ message: error.message });
   }
 };

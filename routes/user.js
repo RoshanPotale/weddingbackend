@@ -9,6 +9,8 @@ router.use(authMiddleware);
 router.use(roleMiddleware(['user']));
 
 router.post('/post-requirement', userController.postRequirement);
+router.post('/whitelist/:vendorId', userController.addVendorToWhitelist);
+router.delete('/whitelist/:vendorId', userController.removeVendorFromWhitelist);
 router.get('/vendors', userController.viewVendors);
 router.get('/vendor/:vendorId', userController.viewVendorDetails);
 router.post('/contact-vendor', userController.contactVendor);

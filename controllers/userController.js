@@ -458,6 +458,72 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+exports.addVendorToWhitelist = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    await User.updateOne(
+      {
+        _id: req.user.id,
+        'whitelistVendors.vendorId': { $ne: vendor._id },
+      },
+      { $push: { whitelistVendors: { vendorId: vendor._id } } }
+    );
+
+    const user = await User.findById(req.user.id)
+      .select('whitelistVendors')
+      .populate({
+        path: 'whitelistVendors.vendorId',
+        populate: [
+          { path: 'category', select: 'categoryName' },
+          { path: 'subCategory', select: 'subCategoryName name' },
+        ],
+      });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      message: 'Vendor added to whitelist',
+      whitelistVendors: user.whitelistVendors,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.removeVendorFromWhitelist = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $pull: { whitelistVendors: { vendorId } } },
+      { new: true }
+    ).populate({
+      path: 'whitelistVendors.vendorId',
+      populate: [
+        { path: 'category', select: 'categoryName' },
+        { path: 'subCategory', select: 'subCategoryName name' },
+      ],
+    }).select('whitelistVendors');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      message: 'Vendor removed from whitelist',
+      whitelistVendors: user.whitelistVendors,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.deleteUserLead = async (req, res) => {
   const { leadId } = req.params;
   try {
