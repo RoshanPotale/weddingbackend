@@ -11,6 +11,20 @@ const leadSchema = new mongoose.Schema({
     ref: 'Vendor',
     required: true,
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  bundleId: {
+    type: String,
+  },
+  bundleDetails: {
+    city: String,
+    eventDate: Date,
+    guestCount: Number,
+    estimatedTotal: Number,
+    serviceName: String,
+  },
   customerName: {
     type: String,
     required: true,

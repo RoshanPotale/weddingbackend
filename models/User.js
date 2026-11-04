@@ -82,6 +82,14 @@ const userSchema = new mongoose.Schema(
         customerPhone: String,
         contactDate: Date,
         contactType: String,
+        bundleId: String,
+        bundleDetails: {
+          city: String,
+          eventDate: Date,
+          guestCount: Number,
+          estimatedTotal: Number,
+          serviceName: String,
+        },
         status: {
           type: String,
           enum: ["open", "closed"],

@@ -207,7 +207,7 @@ exports.getLeads = async (req, res) => {
       );
       const isApproved = viewedByEntry?.approvedByUser || false;
 
-      if (!isApproved) {
+      if (!isApproved && leadObj.requirementId) {
         delete leadObj.customerPhone;
       }
       return leadObj;

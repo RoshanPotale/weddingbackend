@@ -3,6 +3,7 @@ const Vendor = require('../models/Vendor');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
 const Category = require('../models/Category');
+const mongoose = require('mongoose');
 const https = require('https');
 const cloudinary = require('../config/cloudinary');
 const { matchVendorsToRequirement, trackVendorLead } = require('../utils/helpers');
@@ -148,21 +149,87 @@ exports.getUserLeads = async (req, res) => {
 };
 
 exports.contactVendor = async (req, res) => {
-  const { vendorId, customerName, customerPhone } = req.body;
+  const { vendorId, customerName, customerPhone, bundleId, bundleDetails } = req.body;
   try {
+    if (!vendorId || !mongoose.isValidObjectId(vendorId)) {
+      return res.status(400).json({ message: 'A valid vendor is required' });
+    }
+    if (bundleId !== undefined && (typeof bundleId !== 'string' || bundleId.length > 100)) {
+      return res.status(400).json({ message: 'Invalid package request identifier' });
+    }
+
+    let safeBundleDetails;
+    if (bundleDetails !== undefined) {
+      if (!bundleDetails || typeof bundleDetails !== 'object' || Array.isArray(bundleDetails)) {
+        return res.status(400).json({ message: 'Invalid package request details' });
+      }
+
+      const eventDate = bundleDetails.eventDate ? new Date(bundleDetails.eventDate) : undefined;
+      const guestCount = bundleDetails.guestCount === undefined ? undefined : Number(bundleDetails.guestCount);
+      const estimatedTotal = bundleDetails.estimatedTotal === undefined ? undefined : Number(bundleDetails.estimatedTotal);
+      if (
+        (bundleDetails.eventDate && Number.isNaN(eventDate.getTime())) ||
+        (guestCount !== undefined && (!Number.isInteger(guestCount) || guestCount < 1)) ||
+        (estimatedTotal !== undefined && (!Number.isFinite(estimatedTotal) || estimatedTotal < 0))
+      ) {
+        return res.status(400).json({ message: 'Invalid package request details' });
+      }
+
+      safeBundleDetails = {
+        city: typeof bundleDetails.city === 'string' ? bundleDetails.city.trim().slice(0, 100) : undefined,
+        eventDate,
+        guestCount,
+        estimatedTotal,
+        serviceName: typeof bundleDetails.serviceName === 'string' ? bundleDetails.serviceName.trim().slice(0, 80) : undefined,
+      };
+    }
+
     const currentUser = await User.findById(req.user.id);
     if (!currentUser) {
       return res.status(404).json({ message: 'User not found' });
+    }
+    const vendor = await Vendor.findById(vendorId).select('_id status subscriptionStatus');
+    if (!vendor || vendor.status !== 'approved' || vendor.subscriptionStatus !== 'active') {
+      return res.status(404).json({ message: 'Vendor not found or unavailable' });
     }
 
     const nameToSave = customerName || currentUser.name;
     const phoneToSave = customerPhone || currentUser.phone;
 
     await trackVendorLead(vendorId, nameToSave, phoneToSave, 'customerContactedVendor');
+    const leadFilter = {
+      vendorId,
+      userId: currentUser._id,
+      requirementId: null,
+      bundleId: bundleId || null,
+    };
+    const lead = await Lead.findOneAndUpdate(
+      leadFilter,
+      {
+        $set: {
+          customerName: nameToSave,
+          customerPhone: phoneToSave,
+          contactDate: new Date(),
+          contactType: 'customerContactedVendor',
+          ...(bundleId ? { bundleId } : {}),
+          ...(safeBundleDetails ? { bundleDetails: safeBundleDetails } : {}),
+        },
+        $setOnInsert: {
+          vendorId,
+          userId: currentUser._id,
+          requirementId: null,
+          status: 'open',
+        },
+      },
+      { new: true, upsert: true, runValidators: true }
+    );
     
     // Check if this lead already exists to avoid duplicates
     const existingLead = currentUser.leads.find(
-      lead => lead.vendorId && lead.vendorId.toString() === vendorId.toString()
+      lead =>
+        lead.vendorId &&
+        lead.vendorId.toString() === vendorId.toString() &&
+        (lead.bundleId || null) === (bundleId || null)
     );
     
     if (!existingLead) {
@@ -170,31 +237,37 @@ exports.contactVendor = async (req, res) => {
       await User.findByIdAndUpdate(req.user.id, {
         $push: {
           leads: {
+            leadId: lead._id,
             vendorId,
             customerName: nameToSave,
             customerPhone: phoneToSave,
             contactDate: new Date(),
             contactType: 'customerContactedVendor',
+            ...(bundleId ? { bundleId } : {}),
+            ...(safeBundleDetails ? { bundleDetails: safeBundleDetails } : {}),
             status: 'open',
           },
         },
       });
     } else {
       // Update existing lead with new contact information
-      await User.findByIdAndUpdate(
-        { _id: req.user.id, 'leads.vendorId': vendorId },
+      await User.findOneAndUpdate(
+        { _id: req.user.id, 'leads.vendorId': vendorId, 'leads.bundleId': bundleId || null },
         {
           $set: {
             'leads.$.contactDate': new Date(),
             'leads.$.contactType': 'customerContactedVendor',
             'leads.$.customerName': nameToSave,
             'leads.$.customerPhone': phoneToSave,
+            'leads.$.leadId': lead._id,
+            ...(bundleId ? { 'leads.$.bundleId': bundleId } : {}),
+            ...(safeBundleDetails ? { 'leads.$.bundleDetails': safeBundleDetails } : {}),
           },
         }
       );
     }
     
-    res.json({ message: 'Vendor contact tracked successfully' });
+    res.json({ message: 'Vendor contact tracked successfully', leadId: lead._id });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -208,7 +281,8 @@ exports.approveQuotation = async (req, res) => {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
-    if (!lead.requirementId || lead.requirementId.userId.toString() !== req.user.id) {
+    const ownerId = lead.requirementId?.userId || lead.userId;
+    if (!ownerId || ownerId.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized to approve this quotation.' });
     }
 
@@ -223,15 +297,17 @@ exports.approveQuotation = async (req, res) => {
     await lead.save();
 
     // Update the Requirement's viewedBy array to set approvedByUser = true
-    await Requirement.findOneAndUpdate(
-      { _id: lead.requirementId._id, 'viewedBy.leadId': lead._id },
-      {
-        $set: {
-          'viewedBy.$.approvedByUser': true,
-          'viewedBy.$.approvedByUserId': req.user.id,
-        },
-      }
-    );
+    if (lead.requirementId) {
+      await Requirement.findOneAndUpdate(
+        { _id: lead.requirementId._id, 'viewedBy.leadId': lead._id },
+        {
+          $set: {
+            'viewedBy.$.approvedByUser': true,
+            'viewedBy.$.approvedByUserId': req.user.id,
+          },
+        }
+      );
+    }
 
     await User.findOneAndUpdate(
       { _id: req.user.id, 'leads.leadId': lead._id },
@@ -370,13 +446,9 @@ exports.downloadQuotation = async (req, res) => {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
-    // Check authorization
-    if (lead.requirementId && lead.requirementId.userId) {
-      if (lead.requirementId.userId.toString() !== req.user.id) {
-        return res.status(403).json({ message: 'Not authorized to download this quotation' });
-      }
-    } else {
-      return res.status(400).json({ message: 'Requirement not found for this lead' });
+    const ownerId = lead.requirementId?.userId || lead.userId;
+    if (!ownerId || ownerId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to download this quotation' });
     }
 
     if (!lead.quotationUrl) {
@@ -533,13 +605,9 @@ exports.deleteUserLead = async (req, res) => {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
-    // Check if this requirement belongs to the user
-    if (lead.requirementId && lead.requirementId.userId) {
-      if (lead.requirementId.userId.toString() !== req.user.id) {
-        return res.status(403).json({ message: 'Not authorized to delete this lead' });
-      }
-    } else {
-      return res.status(400).json({ message: 'Requirement not found for this lead' });
+    const ownerId = lead.requirementId?.userId || lead.userId;
+    if (!ownerId || ownerId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to delete this lead' });
     }
 
     // Delete from User.leads
