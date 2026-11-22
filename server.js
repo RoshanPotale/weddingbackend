@@ -33,6 +33,7 @@ const userRoutes = require('./routes/user');
 const categoryRoutes = require('./routes/category');
 const subCategoryRoutes = require('./routes/subCategoryRoutes'); // Corrected
 const profileRoutes = require('./routes/profile');
+const locationRoutes = require('./routes/location');
 
 app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
@@ -43,6 +44,7 @@ app.use('/user', userRoutes);
 app.use('/category', categoryRoutes);
 app.use('/subcategory', subCategoryRoutes); // NEW
 app.use('/profile', profileRoutes);
+app.use('/api/v1/location', locationRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

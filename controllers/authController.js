@@ -7,6 +7,52 @@ const Employee = require('../models/Employee');
 const Vendor = require('../models/Vendor');
 const User = require('../models/User');
 const Category = require('../models/Category');
+const { resolvePincode } = require('./locationController');
+
+const normalizeRegistrationAddress = (body) => {
+  const requiredFields = ['addressLine', 'village', 'city', 'district', 'state', 'country', 'pincode'];
+  const address = {};
+
+  for (const field of requiredFields) {
+    if (typeof body[field] !== 'string' || !body[field].trim()) {
+      return { error: `${field} is required` };
+    }
+    address[field] = body[field].trim();
+  }
+
+  if (!/^[1-9][0-9]{5}$/.test(address.pincode)) {
+    return { error: 'A valid six-digit PIN code is required' };
+  }
+
+  if (body.landmark !== undefined && typeof body.landmark !== 'string') {
+    return { error: 'landmark must be a string' };
+  }
+  address.landmark = typeof body.landmark === 'string' ? body.landmark.trim() : '';
+
+  return { address };
+};
+
+const validateRegistrationAddress = async (body) => {
+  const normalizedAddress = normalizeRegistrationAddress(body);
+  if (normalizedAddress.error) return normalizedAddress;
+
+  try {
+    const location = await resolvePincode(normalizedAddress.address.pincode);
+    const selectedVillage = normalizedAddress.address.village.toLocaleLowerCase('en-IN');
+    const villageExists = location.villages.some(
+      (village) => village.toLocaleLowerCase('en-IN') === selectedVillage
+    );
+    if (!villageExists) {
+      return { error: 'Select a village or post office returned for this PIN code', status: 400 };
+    }
+    return normalizedAddress;
+  } catch (error) {
+    return {
+      error: error.message || 'Unable to verify this PIN code right now.',
+      status: error.status || 502,
+    };
+  }
+};
 
 // Cloudinary upload helper
 const uploadToCloudinary = (buffer, folder) => {
@@ -94,18 +140,19 @@ exports.userRegister = async (req, res) => {
     email,
     password,
     phone,
-    address,
-    city,
-    state,
     dateOfBirth,
     maritalStatus,
     gender,
     occupation,
   } = req.body;
   try {
-    if (!name || !email || !password || !phone || !city || !state) {
+    const validatedAddress = await validateRegistrationAddress(req.body);
+    if (validatedAddress.error) {
+      return res.status(validatedAddress.status || 400).json({ message: validatedAddress.error });
+    }
+    if (!name || !email || !password || !phone) {
       return res.status(400).json({
-        message: 'Name, email, password, phone, city, and state are required',
+        message: 'Name, email, password, and phone are required',
       });
     }
 
@@ -121,9 +168,7 @@ exports.userRegister = async (req, res) => {
       email,
       password: hashedPassword,
       phone,
-      address,
-      city,
-      state,
+      ...validatedAddress.address,
       dateOfBirth: dateOfBirth || undefined,
       maritalStatus: maritalStatus || undefined,
       gender: gender || undefined,
@@ -156,16 +201,22 @@ exports.vendorRegister = async (req, res) => {
   
   const { 
     businessName, ownerName, email, password, phone, whatsapp, 
-    address, city, state, zipCode, category, subCategory, 
+    category, subCategory, 
     experience, teamSize, description, pricingRange, perPlateCharge,
     aadhaarDocumentId, panDocumentId, gstDocumentId,
     instagram, facebook, youtube, linkedin, twitter, packages
   } = req.body;
   
   try {
+    const validatedAddress = await validateRegistrationAddress(req.body);
+    if (validatedAddress.error) {
+      return res.status(validatedAddress.status || 400).json({ message: validatedAddress.error });
+    }
+
     // Step 1: Validate required fields
+
     console.log('✅ STEP 1: Validating required fields...');
-    const requiredFields = { businessName, ownerName, email, password, phone, address, city, state, zipCode, category, experience, teamSize, description, pricingRange };
+    const requiredFields = { businessName, ownerName, email, password, phone, category, experience, teamSize, description, pricingRange };
     const missingFields = Object.entries(requiredFields).filter(([key, value]) => !value).map(([key]) => key);
     
     if (missingFields.length > 0) {
@@ -305,10 +356,7 @@ exports.vendorRegister = async (req, res) => {
       password: hashedPassword,
       phone,
       whatsapp,
-      address,
-      city,
-      state,
-      zipCode,
+      ...validatedAddress.address,
       category: categoryId,
       subCategory: subCategory || null,
       experience: parseInt(experience),

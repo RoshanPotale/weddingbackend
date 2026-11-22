@@ -15,10 +15,22 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    address: {
+    addressLine: {
+      type: String,
+      required: true,
+    },
+    landmark: {
       type: String,
     },
+    village: {
+      type: String,
+      required: true,
+    },
     city: {
+      type: String,
+      required: true,
+    },
+    district: {
       type: String,
       required: true,
     },
@@ -26,6 +38,41 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    country: {
+      type: String,
+      required: true,
+    },
+    pincode: {
+      type: String,
+      required: true,
+      match: /^[1-9][0-9]{5}$/,
+    },
+    // coordinates: {
+    //   type: {
+    //     type: String,
+    //     enum: ["Point"],
+    //     default: "Point",
+    //   },
+
+    //   coordinates: {
+    //     type: [Number],
+    //     default: undefined,
+    //     validate: {
+    //       validator: function (value) {
+    //         if (!value || value.length === 0) return true;
+
+    //         return (
+    //           value.length === 2 &&
+    //           value[0] >= -180 &&
+    //           value[0] <= 180 &&
+    //           value[1] >= -90 &&
+    //           value[1] <= 90
+    //         );
+    //       },
+    //       message: "Invalid longitude or latitude",
+    //     },
+    //   },
+    // },
     dateOfBirth: {
       type: Date,
     },
